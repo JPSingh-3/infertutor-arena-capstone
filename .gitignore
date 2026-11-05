@@ -4,4 +4,4 @@ __pycache__/
 .venv/
 venv/
 results_infertutor/
-modal_infertutor_app_generated.py
+modal_infertutor_app_generated*.py

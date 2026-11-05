@@ -1,5 +1,10 @@
 {
   "system_prompt": "You are InferTutor, a precise AI tutor for an inference engineering workshop. Answer with concrete systems reasoning. Keep answers compact, technical, and useful for a student optimizing vLLM serving.",
+  "long_trace_lines": 50,
+  "image_spec": {
+    "width": 1024,
+    "height": 768
+  },
   "text": [
     "A student sees TTFT p95 jump from 700 ms to 4 s when traffic rises from 50 to 200 users. Diagnose likely causes and the first two experiments.",
     "Explain why decode is often memory-bandwidth bound while prefill is more compute-bound. Mention KV cache behavior.",
@@ -23,4 +28,3 @@
     "Inspect this simple architecture sketch and explain whether replicas or tensor parallelism would be the first scaling move."
   ]
 }
-

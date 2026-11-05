@@ -47,6 +47,7 @@ The [`starter_code`](./starter_code) folder contains:
 | [`run_infertutor_experiment.py`](./starter_code/run_infertutor_experiment.py) | One-command deploy + benchmark runner |
 | [`load_test_infertutor.py`](./starter_code/load_test_infertutor.py) | Async streaming load tester |
 | [`score_infertutor.py`](./starter_code/score_infertutor.py) | Local leaderboard scorer |
+| [`server_metrics.py`](./starter_code/server_metrics.py) | Summarizes per-replica vLLM and GPU metrics for each run |
 | [`prompts.json`](./starter_code/prompts.json) | Fixed official prompt set |
 | [`requirements.txt`](./starter_code/requirements.txt) | Local Python dependencies |
 | [`README.md`](./starter_code/README.md) | Quick-start commands for the code |
@@ -86,6 +87,8 @@ You are penalized for:
 
 ## Tracks
 
+**Note on baselines:** the 1-, 2- and 4-GPU numbers below were re-measured on 2026-11-03 with the current harness (H100, vLLM 0.21.0, 0 errors in ~15,600 requests), with the load generator on a laptop over the internet. ITL p95 here is measured per token at the client, so it includes network bunching: vLLM itself spaced tokens about 5 ms apart in compiled mode and 22-26 ms in eager mode. The 8-GPU table is from the earlier dry run with the old harness. Notice that the 4-replica mixed run does worse than the 2-replica one; finding out why is a good first experiment (look at `server_metrics`).
+
 ### 1. Multimodal Product Track
 
 This is the main capstone track.
@@ -102,12 +105,12 @@ Recommended budget:
 Up to 4 H100 GPUs
 ```
 
-Internal reference baseline:
+Reference baseline (re-measured 2026-11-03):
 
 | Config | Users | GPUs | Errors | TTFT p95 | ITL p95 | Throughput |
 |---|---:|---:|---:|---:|---:|---:|
-| eager, 4 replicas, seq32/b4096 | 120 | 4 | 0.0% | 897.6 ms | 38.1 ms | 2,756 chunks/s |
-| eager, 2 replicas, seq32/b4096 | 100 | 2 | 0.0% | 1,168.9 ms | 28.7 ms | 2,243 chunks/s |
+| eager, 4 replicas, seq32/b4096 | 120 | 4 | 0.0% | 2,655 ms | 124.4 ms | 2,618 chunks/s |
+| eager, 2 replicas, seq32/b4096 | 100 | 2 | 0.0% | 1,125 ms | 91.4 ms | 2,695 chunks/s |
 
 ### 2. Text Speed Track
 
@@ -125,12 +128,12 @@ Recommended budget:
 Up to 4 H100 GPUs
 ```
 
-Internal reference baseline:
+Reference baseline (re-measured 2026-11-03):
 
 | Config | Users | GPUs | Errors | TTFT p95 | ITL p95 | Throughput |
 |---|---:|---:|---:|---:|---:|---:|
-| compiled, 4 replicas, seq32/b4096 | 400 | 4 | 0.0% | 1,942.5 ms | 16.2 ms | 11,064 chunks/s |
-| compiled, 1 replica, seq32/b4096 | 100 | 1 | 0.0% | 1,266.8 ms | 10.8 ms | 3,570 chunks/s |
+| compiled, 4 replicas, seq32/b4096 | 400 | 4 | 0.0% | 1,167 ms | 30.5 ms | 18,476 chunks/s |
+| compiled, 1 replica, seq32/b4096 | 100 | 1 | 0.0% | 1,786 ms | 38.5 ms | 3,349 chunks/s |
 
 ### Optional Boss Fight
 
@@ -241,7 +244,17 @@ Start with:
 - `--chunked-prefill` / `--no-chunked-prefill`
 - `--fast-boot` / `--no-fast-boot`
 - `--concurrent-inputs`
-- `--mm-max-pixels`
+- `--mm-max-pixels` (the official test image is 1024x768 = 786k pixels, so caps below that resize it)
+- `--cpu` / `--memory-mb`: CPU cores and memory reserved per container (defaults 4 and 32768; measured use is 1.5–2.8 cores). vLLM needs at least 2 + GPUs physical cores; `--cpu 0` falls back to Modal's default of 0.125 reserved cores.
+
+Measurement options (they don't change the server):
+
+- `--processes N`: spread the load over N client processes. Use it if a run warns that the load generator is overloaded.
+- `--arrival-rate R`: open-loop traffic at R requests/s instead of a fixed user count. It shows true capacity; it's diagnostic and not scored.
+- `--slo-ttft-ms` / `--slo-tpot-ms`: latency targets for SLO goodput (defaults 1000 ms / 50 ms).
+- `--seed N`: every simulated user sends the same request sequence in every run, so repeated runs are comparable.
+
+Each result also records a TTFT breakdown (`ttft_breakdown`: client wait until response headers, server time from container ingress to headers, the difference as network/proxy time, and headers to first token). The server metrics add CPU cores used per vLLM process, requests and step time per replica, the container's CPU model, vLLM's startup facts (KV cache size, compile and CUDA-graph capture time) and an exact image-token count from vLLM's processor.
 
 Keep notes. A good capstone submission explains not just the final number, but why the final configuration won.
 
@@ -261,7 +274,7 @@ python score_infertutor.py results_infertutor
 
 ## Cleanup
 
-Modal charges while GPU containers are active or warming. Clean up after experiments:
+Modal charges while GPU containers are active or warming. Each experiment deploys its own app with `min_containers = --replicas`, so its GPUs never scale down on their own. `run_infertutor_experiment.py` stops the app automatically at the end of each run (pass `--keep-app` to keep it). If a run was interrupted, check for leftovers:
 
 ```bash
 modal app list

@@ -283,7 +283,7 @@ modal app list
 modal app stop <APP_ID_OR_NAME>
 ```
 
-The starter runner deploys apps with a scale-down window, but you should still clean up after yourself.
+Each experiment deploys a separately named app (`infertutor-<label>`) with `min_containers` equal to `--replicas`. Containers with `min_containers` set never scale down on their own, so they bill until the app is stopped. The runner therefore stops the app automatically when a run finishes or fails. Pass `--keep-app` (or `--deploy-only`) to keep it running for reuse with `--url`, and stop it yourself afterwards. If a run is killed hard (e.g. the terminal is closed), check `modal app list` for leftovers.
 
 ## Reading Results
 
@@ -298,11 +298,42 @@ Key fields:
 | Field | Meaning |
 |---|---|
 | `ttft_p95_ms` | p95 time to first streamed content chunk |
-| `itl_p95_ms` | p95 inter-token or inter-chunk latency |
+| `itl_p95_ms` / `itl_p99_ms` | p95 / p99 over every individual inter-chunk gap (mid-stream stalls show up here) |
+| `itl_request_mean_p95_ms` | p95 of each request's average gap (older metric; hides stalls) |
 | `latency_p95_ms` | p95 total request latency |
-| `aggregate_stream_chunks_per_s` | aggregate streamed content chunks per second |
-| `requests_per_s` | completed requests per second |
+| `aggregate_stream_chunks_per_s` | streamed content chunks per second during the measured window |
+| `requests_per_s` | successful requests per second during the measured window |
 | `error_rate` | failed requests divided by total requests |
+| `error_kinds` | error counts by type (`http_503`, `timeout`, `empty_stream`, ...) |
+| `measured_window_s` | length of the steady-state window that metrics cover |
+| `output_tokens_per_s` | exact output tokens per second (token counts reported by vLLM) |
+| `tpot_p95_ms` | p95 time per output token: (latency − TTFT) / (tokens − 1) |
+| `slo_attainment` / `slo_goodput_rps` | share and rate of requests meeting both latency targets |
+| `by_kind` | all of the above split by request type: `text`, `long`, `image` |
+| `client` | load-generator health: event-loop lag and CPU use; `overloaded: true` means re-run with more `--processes` |
+| `server_metrics` | per-replica vLLM and GPU numbers for the window (below) |
+
+Requests still running when the window ends get up to `--drain-timeout` seconds (default 30) to finish. Any still unfinished count as `unfinished_after_drain` errors, so the slowest requests are not silently dropped.
+
+### Server metrics
+
+Each replica runs a small sampler that records vLLM's `/metrics` and `nvidia-smi` every 2 s into the `infertutor-metrics` Modal Volume. It also records the vLLM, CUDA and GPU driver versions and the replica's cold-start time. After the load test the runner downloads these files next to the results JSON and adds a `server_metrics` summary:
+
+| Field | Question it answers |
+|---|---|
+| `requests_waiting_max` vs `requests_running_max` | Is TTFT high because requests queue, or because the GPU is busy? |
+| `queue_time_s_mean` | How long requests wait before vLLM starts them |
+| `kv_cache_usage_max` | Is KV cache memory running out? |
+| `prefix_cache_hit_rate` | Is prefix caching reusing anything? |
+| `load_share_per_replica` | Is traffic spread evenly across replicas? |
+| `gpu_util_pct_mean` | Is the GPU actually busy? |
+| `cold_start_s_max`, `versions` | How long replicas took to start, and exactly what software ran |
+
+To summarize metrics by hand: `python server_metrics.py <results.json> <metrics_dir>`.
+
+Metrics cover only the steady-state window: requests that start after `--ramp-up` ends, until `--duration`. Ramp-up requests are counted separately in `ramp_phase_requests` and do not affect the score. Before measuring, the runner sends warmup bursts big enough to reach every replica (`--warmup-rounds`), so cold starts don't land inside the window.
+
+`score_infertutor.py` marks a run `ok = no` if it is not comparable to official runs, for example: a modified prompt set, non-default `--max-tokens` or pause settings, `long`/`image` diagnostic modes, an endpoint the runner did not deploy (GPU count self-reported), or a window shorter than 30 s. The local score does not include `quality_pass_rate`.
 
 For final judging, your instructor may run the same endpoint with a hidden evaluator that computes exact token throughput and quality pass rate.
 

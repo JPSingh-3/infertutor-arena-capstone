@@ -52,6 +52,12 @@ The starter kit includes `prompts.json` with three workload types:
 | `image` | Vision encoder path, multimodal serving overhead | Inspect a toy dashboard or serving diagram. |
 | `mixed` | Product-like blend of all three | The official multimodal capstone workload. |
 
+How the load tester builds each workload:
+
+- `long` requests attach a synthetic vLLM server log (`long_trace_lines` in `prompts.json`, about 3k tokens) that is different for every request. Only the system prompt is shared, so prefix caching can't hide the prefill cost, and `max_num_batched_tokens` / chunked prefill actually matter.
+- `image` requests send a 1024x768 diagram whose pixels differ slightly per request, so vLLM's multimodal caches can't skip the vision encoder. At 786k pixels it exceeds the default `--mm-max-pixels`, so that knob has a real effect.
+- Metrics cover only the steady-state window after `--ramp-up`. ITL p95 is computed over every inter-token gap, so stalls mid-stream count.
+
 Do not change the prompt set for your submitted runs. You may create additional private experiments, but final submissions must use the provided prompts.
 
 ## Primary Goal
@@ -89,6 +95,8 @@ The score penalizes:
 
 ## Competition Tracks
 
+**Note on baselines:** the 1-, 2- and 4-GPU numbers below were re-measured on 2026-11-03 with the current harness (H100, vLLM 0.21.0, 0 errors in ~15,600 requests), with the load generator on a laptop over the internet. ITL p95 here is measured per token at the client, so it includes network bunching: vLLM itself spaced tokens about 5 ms apart in compiled mode and 22-26 ms in eager mode. The 8-GPU table is from the earlier dry run with the old harness. Notice that the 4-replica mixed run does worse than the 2-replica one; finding out why is a good first experiment (look at `server_metrics`).
+
 ### Track 1: Multimodal Product Track
 
 This is the main capstone track.
@@ -105,12 +113,12 @@ Recommended GPU budget:
 Maximum 4 H100 GPUs
 ```
 
-Reference baseline from the internal dry run:
+Reference baseline (re-measured 2026-11-03):
 
 | Config | Users | GPUs | Error rate | TTFT p95 | ITL p95 | Throughput |
 |---|---:|---:|---:|---:|---:|---:|
-| eager, 4 replicas, seq32/b4096 | 120 | 4 | 0.0% | 897.6 ms | 38.1 ms | 2,756 chunks/s |
-| eager, 2 replicas, seq32/b4096 | 100 | 2 | 0.0% | 1,168.9 ms | 28.7 ms | 2,243 chunks/s |
+| eager, 4 replicas, seq32/b4096 | 120 | 4 | 0.0% | 2,655 ms | 124.4 ms | 2,618 chunks/s |
+| eager, 2 replicas, seq32/b4096 | 100 | 2 | 0.0% | 1,125 ms | 91.4 ms | 2,695 chunks/s |
 
 Your job is to beat this.
 
@@ -130,12 +138,12 @@ Recommended GPU budget:
 Maximum 4 H100 GPUs
 ```
 
-Reference baseline from the internal dry run:
+Reference baseline (re-measured 2026-11-03):
 
 | Config | Users | GPUs | Error rate | TTFT p95 | ITL p95 | Throughput |
 |---|---:|---:|---:|---:|---:|---:|
-| compiled, 4 replicas, seq32/b4096 | 400 | 4 | 0.0% | 1,942.5 ms | 16.2 ms | 11,064 chunks/s |
-| compiled, 1 replica, seq32/b4096 | 100 | 1 | 0.0% | 1,266.8 ms | 10.8 ms | 3,570 chunks/s |
+| compiled, 4 replicas, seq32/b4096 | 400 | 4 | 0.0% | 1,167 ms | 30.5 ms | 18,476 chunks/s |
+| compiled, 1 replica, seq32/b4096 | 100 | 1 | 0.0% | 1,786 ms | 38.5 ms | 3,349 chunks/s |
 
 Compiled mode can be excellent for text-only serving, but it performed poorly on mixed multimodal traffic in our dry run. Use it deliberately.
 

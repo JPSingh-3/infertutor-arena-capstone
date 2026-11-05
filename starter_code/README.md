@@ -12,6 +12,7 @@ The goal is to remove infrastructure friction. You should spend your time on inf
 | `run_infertutor_experiment.py` | One-command deploy + load-test runner |
 | `load_test_infertutor.py` | Async streaming load tester for text, long, image, and mixed workloads |
 | `score_infertutor.py` | Summarizes result JSONs and computes a leaderboard score |
+| `server_metrics.py` | Summarizes the per-replica vLLM/GPU metrics the runner downloads after each run |
 | `prompts.json` | Fixed official prompt set |
 | `requirements.txt` | Local Python dependencies |
 
@@ -76,7 +77,7 @@ Score results:
 python score_infertutor.py results_infertutor
 ```
 
-Stop Modal apps when done:
+The runner stops each experiment's Modal app when the run ends (use `--keep-app` to keep it for reuse with `--url`). If a run was interrupted, stop leftovers manually:
 
 ```bash
 modal app list
