@@ -1,3 +1,7 @@
+> **This fork:** a fixed benchmark harness and 44 measured load tests of Qwen3-VL-4B on vLLM 0.21 with Modal H100s (86K requests).
+> **[Report with charts](https://jpsingh-3.github.io/infertutor-arena-capstone/)** · **[Key results](RESULTS.md)** · **[Raw data](results/)**
+> Built on [VizuaraAI/infertutor-arena-capstone](https://github.com/VizuaraAI/infertutor-arena-capstone).
+
 # InferTutor Arena: Inference Engineering Capstone
 
 Welcome to **InferTutor Arena**, the final capstone project for the Inference Engineering workshop.

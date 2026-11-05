@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InferTutor Baseline Experiments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: technical report, one reading column (~820px), numbered sections, charts full column width. */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9; --surface: #ffffff; --ink: #12161c; --ink-2: #4a525e; --ink-3: #7a828e; --line: #dde1e7;
+  --accent: #2a78d6; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --chip: #e9eef6; --warn-bg: #fff4e5; --warn-ink: #8a4b00; --note-bg: #eaf2fc; --note-ink: #17457e;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121418; --surface: #1a1d22; --ink: #eef0f3; --ink-2: #b9c0ca; --ink-3: #8a929e; --line: #2d323a;
+    --accent: #5598e7; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --chip: #222a36; --warn-bg: #2e2416; --warn-ink: #f2c27a; --note-bg: #16233a; --note-ink: #a9c8f2;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121418; --surface: #1a1d22; --ink: #eef0f3; --ink-2: #b9c0ca; --ink-3: #8a929e; --line: #2d323a;
+  --accent: #5598e7; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --chip: #222a36; --warn-bg: #2e2416; --warn-ink: #f2c27a; --note-bg: #16233a; --note-ink: #a9c8f2;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+main { max-width: 820px; margin: 0 auto; padding: 32px 20px 96px; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 36px; line-height: 1.12; }
+h2 { font-size: 26px; line-height: 1.2; padding-top: 8px; border-top: 2px solid var(--ink); }
+h3 { font-size: 19px; line-height: 1.3; }
+h4 { margin: 0; font-size: 14px; font-weight: 600; }
+p, li { max-width: 70ch; }
+p { margin: 0; }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+section { display: grid; gap: 16px; }
+.exp { display: grid; gap: 14px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.exp > header { display: grid; gap: 4px; }
+.tag { font: 600 12px var(--mono); color: var(--accent); letter-spacing: .04em; }
+.sub { color: var(--ink-2); }
+.meta { color: var(--ink-3); font-size: 14px; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--chip); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; background: var(--chip); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 var(--mono); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 12px; }
+.exp .card { border: 0; padding: 0; }
+.callout { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.note { background: var(--note-bg); color: var(--note-ink); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.callout p, .note p { max-width: none; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+tr.changed td { background: var(--chip); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
+.kpi b { font: 700 24px var(--display); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13px; color: var(--ink-2); }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--ink-2); white-space: nowrap; }
+.pill.on { background: var(--accent); color: #fff; }
+.toc { columns: 2 240px; font-size: 15px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+.legend .line::before { height: 3px; vertical-align: middle; }
+.legend .dash::before { height: 0; border-top: 2px dashed var(--ink-3); background: none; vertical-align: middle; }
+.legend .dot::before { width: 10px; height: 10px; border-radius: 50%; }
+.multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); } h1 { font-size: 28px; } }
+.roofs { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; }
+.roofs .panel p { font-size: 13px; color: var(--ink-2); max-width: none; }
+.panel { display: grid; gap: 4px; }
+.panel h4 { font-size: 13px; }
+.panel .share { color: var(--ink-2); font-weight: 400; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { fill: var(--ink-2); font: 11px var(--body); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .hot { stroke: var(--s2); }
+svg .t { fill: var(--ink); font: 600 12px var(--body); }
+svg .arrow { stroke: var(--ink-3); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .1s; z-index: 5; font-variant-numeric: tabular-nums; max-width: 280px; }
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+details summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+details[open] summary { margin-bottom: 8px; }
+summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header style="display:grid;gap:12px">
+  <p class="meta">InferTutor Arena capstone · Experiments report · Qwen/Qwen3-VL-4B-Instruct on Modal H100 · runs of 2026-11-03 and 2026-11-04</p>
+  <h1>InferTutor Arena: Measuring Before Tuning</h1>
+  <p class="sub">An audit of the benchmark harness, baselines and one-change-at-a-time tuning on H100s with vLLM 0.21.0 (44 measured load tests), with each result explained using vLLM's own metrics.</p>
+  <div class="kpis">
+    <div class="kpi"><b>86,336</b><span>requests measured, 0 errors</span></div>
+    <div class="kpi"><b>18,533</b><span>best output tok/s (4 × H100, text)</span></div>
+    <div class="kpi"><b>$0.24</b><span>per 1M output tokens, best run</span></div>
+    <div class="kpi"><b>~$30</b><span>total GPU spend</span></div>
+  </div>
+</header>
+
+<section aria-label="Contents">
+  <h4>Contents</h4>
+  <ol class="toc">
+    <li><a href="#abstract">Abstract and key findings</a></li>
+    <li><a href="#system">System architecture</a></li>
+    <li><a href="#model">Model and hardware arithmetic</a></li>
+    <li><a href="#audit">Harness audit: what was broken</a></li>
+    <li><a href="#method">Methodology and metrics</a></li>
+    <li><a href="#experiments">Experiments E0–E4 and step 1</a></li>
+    <li><a href="#analysis">Cross-experiment analysis and rooflines</a></li>
+    <li><a href="#optim">Optimization experiments and recommended config</a></li>
+    <li><a href="#limits">Limitations</a></li>
+    <li><a href="#review">Peer review and corrections</a></li>
+    <li><a href="#next">Next experiments</a></li>
+    <li><a href="#appendix">Appendix: commands and versions</a></li>
+  </ol>
+</section>
+
+<section id="abstract">
+  <h2>1. Abstract and key findings</h2>
+  <p>Several settings in the original harness never reached vLLM, so ablations run with it compared identical servers. Before tuning anything, this work fixed the harness, added in-container collection of vLLM's Prometheus metrics, and re-measured the four reference baselines plus a smoke test. Every number below has a client-side view and an engine-side view for the same time window, so each result can be explained rather than guessed at.</p>
+  <ol>
+    <li><b>Throughput is set by concurrency ÷ token gap.</b> For every run, (requests running in vLLM) ÷ (vLLM's inter-token latency) predicts measured output tok/s within 2%. Faster tokens or more concurrent requests are the only two levers.</li>
+    <li><b>Execution mode is the biggest engine effect seen so far, but it is not yet isolated.</b> Compiled text runs step in 5.1–5.3 ms; eager mixed runs in 18–32 ms. Eager steps never drop below ≈18 ms even with 5 requests running, which points at CPU launch overhead. Mixed runs also carry prefill work in their steps, so the clean comparison (mixed traffic, eager vs compiled) is still to run.</li>
+    <li><b>4 GPUs did worse than 2 on mixed traffic</b> (2,635 vs 2,713 tok/s; TTFT p95 2,655 vs 1,125 ms). Replicas completed 693 vs 164 requests in the same window, with the same average request size, so the imbalance is in how many requests each replica received. <b>Hypothesis, not yet proven:</b> Modal's 64-input limit lets it route to a replica whose vLLM batch (32) is already full.</li>
+    <li><b>Much of the client's wait is not covered by vLLM's timers.</b> On text runs, client TTFT was 0.8–1.6 s while vLLM reported 24–37 ms, and 40–57 requests per replica were in flight but not yet running or queued in the engine. The gap grows with streamed chunks per replica. It could be the network, the Modal proxy, the vLLM API server, or streaming buffers; per-hop timestamps are needed to split it.</li>
+    <li><b>The text benchmark is 87% prefix-cache hits</b> because 10 fixed questions repeat. Mixed traffic is 6%. Text results flatter the engine.</li>
+    <li><b>Tuning results (section 8):</b> the default execution mode (torch.compile + CUDA graphs, not yet separated) gives 2× (mixed) to 2.8× (text) the throughput of <code>--enforce-eager</code> on one GPU; <code>max-num-seqs</code> 128 adds another 35%; capping Modal at 32 inputs per replica coincided with balanced replicas (2 runs; cause not proven); raising Modal's limit gave text +42% (5,667 tok/s per H100); the cache, chunking and image flags, a bigger token budget, FP8 and vLLM 0.33 changed little; CPU reservation did not matter.</li>
+    <li><b>Cost:</b> $0.24 per 1M output tokens (text, 4 GPUs, compiled) up to $1.67 (mixed, 4 GPUs, eager). The worst run is 7× more expensive per token, mostly from load imbalance and eager mode.</li>
+  </ol>
+</section>
+
+<section id="system">
+  <h2>2. System architecture</h2>
+  <p>A load tester on a laptop sends streaming OpenAI-style chat requests over the internet to a Modal web endpoint. Modal routes each request to one of N identical containers. Each container runs a vLLM OpenAI server on one H100, plus a sampler thread that reads vLLM's <code>/metrics</code> every 2 s and appends them to a Modal Volume. After the run, the runner downloads those files and joins them to the client results by timestamp.</p>
+  <div class="card">
+    <svg viewBox="0 0 780 300" role="img" aria-label="Architecture: load tester to Modal proxy to replicas, each with vLLM API server, engine and metrics sampler writing to a volume">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker></defs>
+      <rect class="box" x="10" y="110" width="140" height="78" rx="8"/>
+      <text class="t" x="80" y="138" text-anchor="middle">Load tester</text>
+      <text x="80" y="156" text-anchor="middle">laptop · 1–4 processes</text>
+      <text x="80" y="172" text-anchor="middle">closed-loop users</text>
+      <rect class="box hot" x="200" y="110" width="130" height="78" rx="8"/>
+      <text class="t" x="265" y="138" text-anchor="middle">Internet +</text>
+      <text class="t" x="265" y="154" text-anchor="middle">Modal proxy</text>
+      <text x="265" y="172" text-anchor="middle">≤64 in flight / replica</text>
+      <path class="arrow" d="M150,149 H196"/>
+      <rect class="box" x="380" y="14" width="390" height="200" rx="10" style="stroke-dasharray:4 3"/>
+      <text x="392" y="32">Container × N replicas (1 H100 each)</text>
+      <rect class="box hot" x="395" y="46" width="150" height="66" rx="8"/>
+      <text class="t" x="470" y="72" text-anchor="middle">vLLM API server</text>
+      <text x="470" y="90" text-anchor="middle">HTTP, tokenize, SSE</text>
+      <rect class="box" x="600" y="46" width="155" height="66" rx="8"/>
+      <text class="t" x="677" y="72" text-anchor="middle">vLLM engine</text>
+      <text x="677" y="90" text-anchor="middle">≤32 running, queue</text>
+      <path class="arrow" d="M545,79 H596"/>
+      <rect class="box" x="395" y="132" width="150" height="66" rx="8"/>
+      <text class="t" x="470" y="158" text-anchor="middle">Metrics sampler</text>
+      <text x="470" y="176" text-anchor="middle">/metrics + nvidia-smi, 2 s</text>
+      <path class="arrow" d="M470,128 V116"/>
+      <rect class="box" x="600" y="132" width="155" height="66" rx="8"/>
+      <text class="t" x="677" y="158" text-anchor="middle">Modal Volume</text>
+      <text x="677" y="176" text-anchor="middle">infertutor-metrics (JSONL)</text>
+      <path class="arrow" d="M545,165 H596"/>
+      <path class="arrow" d="M330,149 C355,149 360,79 391,79"/>
+      <rect class="box" x="380" y="234" width="390" height="54" rx="8"/>
+      <text class="t" x="575" y="256" text-anchor="middle">server_metrics.py → results JSON → score_infertutor.py</text>
+      <text x="575" y="274" text-anchor="middle">joined to the client's measured window by timestamp</text>
+      <path class="arrow" d="M677,198 V230"/>
+      <path class="arrow" d="M80,188 V261 H376"/>
+    </svg>
+    <p class="meta">Orange borders: places where time is spent that the engine's metrics cannot see. Sections 6 and 7 show this is where most of the client's TTFT goes.</p>
+  </div>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Component</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Model</td><td>Qwen/Qwen3-VL-4B-Instruct, bf16</td><td>Fixed by the assignment. One model for text, long logs and screenshots.</td></tr>
+        <tr><td>Engine</td><td>vLLM 0.21.0 (V1 engine)</td><td>Continuous batching, paged KV cache, prefix cache, chunked prefill.</td></tr>
+        <tr><td>GPU</td><td>NVIDIA H100 80GB HBM3 (SXM), driver 610.57, CUDA 13.0</td><td>Track reference hardware. $3.95/hr on Modal.</td></tr>
+        <tr><td>Scale-out</td><td>Modal <code>min_containers</code> = replicas, data parallel</td><td>A 4B model fits one GPU many times over, so tensor parallelism only adds communication.</td></tr>
+        <tr><td>Observability</td><td>In-container sampler → Modal Volume → local summary</td><td>Engine-side truth for the exact client window, with no extra infrastructure.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="model">
+  <h2>3. Model and hardware arithmetic</h2>
+  <p>These back-of-envelope numbers set the ceilings that later results are checked against. Model shape is from the model's <code>config.json</code>: 36 layers, 32 query heads, 8 KV heads, head dim 128, hidden 2560, plus a 24-layer vision encoder.</p>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Quantity</th><th class="num">Value</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Weights in memory</td><td class="num">≈ 8.9 GB</td><td>≈ 4.4 B parameters × 2 bytes (bf16)</td></tr>
+        <tr><td>KV cache per token</td><td class="num">144 KiB</td><td>2 (K and V) × 36 layers × 8 KV heads × 128 × 2 bytes = 147,456 B</td></tr>
+        <tr><td>KV cache capacity</td><td class="num">450,768 tokens</td><td>Measured from vLLM's startup log (step 1 runs): 55× concurrency at 8,192 tokens per request. My estimate was 350–400k.</td></tr>
+        <tr><td>H100 SXM memory bandwidth</td><td class="num">3.35 TB/s</td><td>Spec sheet</td></tr>
+        <tr><td>Decode step floor</td><td class="num">≈ 2.8 ms</td><td>Each step reads all weights once: 8.9 GB ÷ 3.35 TB/s = 2.65 ms, plus KV reads (~0.2 ms at 23 short requests)</td></tr>
+        <tr><td>Throughput ceiling at 32 running</td><td class="num">≈ 11,000 tok/s</td><td>32 ÷ 2.8 ms, if the step stayed at the floor. Measured compiled step was 5.1 ms, so ≈ 6,200 tok/s per GPU.</td></tr>
+        <tr><td>Long-log prompt</td><td class="num">3,569 tokens</td><td>Measured (server usage). ≈ 514 MB of KV per request.</td></tr>
+        <tr><td>Screenshot prompt</td><td class="num">448 tokens</td><td>Measured total prompt: system prompt + question (≈ 70 tokens) + image</td></tr>
+        <tr><td>Image tokens</td><td class="num">376</td><td>Measured by vLLM's own processor (same request with and without the image). Matches the computed 704×544 resize at 32 px per token = 374, plus 2 vision marker tokens.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><p><b>What this suggests:</b> KV cache capacity is not the binding limit at 32 requests per GPU (10% used). That says nothing yet about compute, memory bandwidth or CPU overhead, any of which can still be saturated. In theory, decode at small batch is bandwidth-bound, so extra requests per step should be cheap, but only the <code>--max-num-seqs</code> 32 → 64 → 128 sweep can show where ITL starts to rise. That knob also sets which batch sizes get CUDA graphs captured, not just KV admission.</p></div>
+</section>
+
+<section id="audit">
+  <h2>4. Harness audit: what was broken</h2>
+  <p>Reading the starter code before running it found settings that never took effect and measurements that included the wrong things. Any results produced with the original harness should be read with these in mind.</p>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Problem in the original harness</th><th>Effect on results</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>"Prefix cache off" and "chunked prefill off" only removed the <code>--enable-*</code> flags. vLLM V1 turns both on by default.</td><td>Those ablations ran the same config twice. Any difference was noise.</td><td>Pass <code>--no-enable-prefix-caching</code> / <code>--no-enable-chunked-prefill</code> explicitly.</td></tr>
+        <tr><td>The test image was 49k px, far below any pixel cap tried.</td><td>Pixel-cap experiments changed nothing.</td><td>Unique 1024×768 PNG per request, so the cap applies and nothing is cached.</td></tr>
+        <tr><td>Health check passed when one replica was up.</td><td>Multi-replica runs started with cold replicas, causing errors and slow starts.</td><td>Warm-up bursts sized to reach every replica before measuring.</td></tr>
+        <tr><td>Ramp-up and tail included in the averages.</td><td>Results depended on ramp length.</td><td>Fixed measured window, then a drain period; unfinished requests counted as errors.</td></tr>
+        <tr><td>ITL was a per-request average; token counts estimated from chunks.</td><td>Hid stalls; tok/s was approximate.</td><td>Per-token gaps, plus exact counts from <code>stream_options.include_usage</code>.</td></tr>
+        <tr><td>One load-test process.</td><td>At high user counts the client itself was the bottleneck.</td><td><code>--processes N</code>; event-loop lag and CPU recorded; run flagged if the client was overloaded.</td></tr>
+        <tr><td>GPU budget not checked; runner cap could be edited.</td><td>A "4-GPU track" result used 10 GPUs.</td><td>Scorer flags &gt;4 GPUs per track, &gt;8 for the boss fight.</td></tr>
+        <tr><td>A failed deploy skipped cleanup.</td><td>GPUs kept billing.</td><td>Deploy inside <code>try/finally</code>; <code>modal app stop</code> always runs.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="method">
+  <h2>5. Methodology and metrics</h2>
+  <div class="two">
+    <div class="card">
+      <h4>Workload</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Request type</th><th class="num">Mixed share</th><th class="num">Prompt tokens</th><th class="num">Output</th></tr></thead>
+        <tbody>
+          <tr><td>Text question</td><td class="num">52%</td><td class="num">≈ 77</td><td class="num">96</td></tr>
+          <tr><td>Long log (50 lines)</td><td class="num">21%</td><td class="num">≈ 3,565</td><td class="num">96</td></tr>
+          <tr><td>Screenshot + question</td><td class="num">26%</td><td class="num">≈ 448</td><td class="num">≈ 85</td></tr>
+        </tbody>
+      </table></div>
+      <p class="meta">Text mode sends only text questions. Each user waits 0.2–1.2 s after a reply, then sends the next request (closed loop).</p>
+    </div>
+    <div class="card">
+      <h4>Run protocol</h4>
+      <ol>
+        <li>Deploy N replicas, wait for health, then warm every replica.</li>
+        <li>Ramp users up over 25 s (40 s for 400 users).</li>
+        <li>Measure the steady window (65 s; 50 s for 400 users).</li>
+        <li>Drain for up to 30 s; requests still open count as errors.</li>
+        <li>Fetch the vLLM metrics, join by time, stop the app.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Metric</th><th>Definition</th></tr></thead>
+      <tbody>
+        <tr><td>TTFT</td><td>Request sent → first token received at the client.</td></tr>
+        <tr><td>ITL</td><td>Gap between consecutive streamed tokens at the client, over all tokens (p95 reported).</td></tr>
+        <tr><td>TPOT</td><td>Per request: (last token − first token) ÷ (tokens − 1).</td></tr>
+        <tr><td>SLO attainment</td><td>Share of requests with TTFT ≤ 1,000 ms and TPOT ≤ 50 ms.</td></tr>
+        <tr><td>vLLM metrics</td><td>Running/waiting requests, KV use, queue/prefill/decode time, engine TTFT and ITL, prefix-cache hits, GPU util; window deltas per replica.</td></tr>
+        <tr><td>Score</td><td><code>chunks/s × (1 − error rate) × users ÷ (TTFT p95 [s] × ITL p95 [s] × GPUs)</code>, without the quality term.</td></tr>
+        <tr><td>$ per 1M tokens</td><td>GPUs × $3.95/hr ÷ output tok/s, steady state only (excludes cold start and idle time).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="experiments">
+  <h2>6. Experiments</h2>
+  <p>Each experiment uses the vLLM settings below unless its table says otherwise. Only <code>--enforce-eager</code> changed between runs; the other differences are replica count and user count.</p>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>vLLM flag</th><th>Value in all runs</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>--max-num-seqs</code></td><td class="mono">32</td><td>Requests decoded together per GPU; the rest wait in vLLM's queue.</td></tr>
+        <tr><td><code>--max-num-batched-tokens</code></td><td class="mono">4096</td><td>Total tokens the scheduler may process in one engine iteration, across all requests. With chunked prefill, decodes are scheduled first and long prompts are split to fit the remaining budget; it is not a per-request allocation.</td></tr>
+        <tr><td><code>--max-model-len</code></td><td class="mono">8192</td><td>Max prompt + output length.</td></tr>
+        <tr><td><code>--gpu-memory-utilization</code></td><td class="mono">0.90</td><td>Share of GPU memory for weights + KV cache.</td></tr>
+        <tr><td><code>--enable-prefix-caching</code></td><td class="mono">on</td><td>Reuses KV for repeated prompt prefixes.</td></tr>
+        <tr><td><code>--enable-chunked-prefill</code></td><td class="mono">on</td><td>Splits long prompts across steps.</td></tr>
+        <tr><td><code>--mm-processor-kwargs</code></td><td class="mono">max_pixels 401,408</td><td>Image resize cap (≈ 512 patches).</td></tr>
+        <tr><td><code>--limit-mm-per-prompt</code></td><td class="mono">image 1, video 0</td><td>One image per request.</td></tr>
+        <tr><td><code>--dtype</code>, <code>--tensor-parallel-size</code></td><td class="mono">bfloat16, 1</td><td>Full-precision weights, one GPU per replica.</td></tr>
+        <tr class="changed"><td><code>--enforce-eager</code></td><td class="mono">varies</td><td><b>Eager</b> (<code>--enforce-eager</code>): no CUDA graphs; every kernel is launched from Python, fast boot. <b>Default</b> (<code>--no-enforce-eager</code>): vLLM captures CUDA graphs and replays them, cutting CPU launch overhead; vLLM V1 also applies torch.compile by default. This report calls that "compiled" and does not separate the two.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <article class="exp" id="e0">
+    <header><span class="tag">E0 · SMOKE TEST</span><h3>1 replica, mixed traffic, 10 users, eager</h3></header>
+    <p><b>Goal:</b> prove the full pipeline works on real hardware: deploy, metrics sampler, volume download, join, cleanup. Also confirm vLLM 0.21's metric names.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Client</th><th class="num">Value</th><th>vLLM engine</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">170 / 0</td><td>Running (mean)</td><td class="num">6.0</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">367 / 572 ms</td><td>Engine TTFT (mean)</td><td class="num">75 ms</td></tr>
+        <tr><td>ITL p95</td><td class="num">82.9 ms</td><td>Engine ITL (mean)</td><td class="num">19.0 ms</td></tr>
+        <tr><td>Output tok/s</td><td class="num">321</td><td>GPU util</td><td class="num">41%</td></tr>
+        <tr><td>Cold start</td><td class="num">177 s</td><td>Prefix-cache hits</td><td class="num">6%</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Analysis:</b> at almost no load, the client still waits about 290 ms more than the engine for the first token. That is the fixed cost of the internet and the Modal proxy, and it sets the floor for every later run. Eager ITL is 19 ms with only 6 requests running, far above the 2.8 ms bandwidth floor, so eager mode is dominated by per-step CPU overhead, not by the GPU.</p>
+    <p class="meta">Incident: the first deploy crashed on a region-specific URL (<code>…us-east.modal.run</code>) and, because deploy ran outside the cleanup block, left the app running (≈ $0.40). Both bugs were fixed and the cleanup path was tested.</p>
+  </article>
+
+  <article class="exp" id="e1">
+    <header><span class="tag">E1 · TEXT, 1 GPU</span><h3>1 replica, text only, 100 users, compiled</h3></header>
+    <p><b>Goal:</b> single-GPU text baseline with CUDA graphs. <b>Hypothesis:</b> compiled decode is several times faster than eager.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Client</th><th class="num">Value</th><th>vLLM engine</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">2,272 / 0</td><td>Running mean / max</td><td class="num">18.2 / 23</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">1,567 / 1,786 ms</td><td>Waiting max</td><td class="num">0</td></tr>
+        <tr><td>ITL p95 / TPOT p95</td><td class="num">38.5 / 7.0 ms</td><td>Engine TTFT / ITL (mean)</td><td class="num">24 / 5.3 ms</td></tr>
+        <tr><td>Output tok/s</td><td class="num">3,359</td><td>GPU util</td><td class="num">88%</td></tr>
+        <tr><td>SLO attainment</td><td class="num">0%</td><td>Prefix-cache hits</td><td class="num">88%</td></tr>
+        <tr><td>Score</td><td class="num">4.87 M</td><td>$ per 1M tokens</td><td class="num">$0.33</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Analysis:</b> the hypothesis holds: the engine's token gap is 5.3 ms against 19–26 ms in eager runs. Yet no request met the 1 s TTFT target. The engine produced first tokens in 24 ms and never queued anything; vLLM's queue was empty the whole time. By Little's law, 35 req/s × 2.16 s latency ≈ 75 requests were in flight, but only 18 were inside the engine. About 57 were waiting somewhere between the client and the engine. That also exceeds Modal's 64-per-replica limit, so some were held at the proxy.</p>
+  </article>
+
+  <article class="exp" id="e2">
+    <header><span class="tag">E2 · TEXT, 4 GPU</span><h3>4 replicas, text only, 400 users, compiled</h3></header>
+    <p><b>Goal:</b> text-track reference at the full 4-GPU budget. <b>Hypothesis:</b> near-linear scale-out because text requests are uniform.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Client</th><th class="num">Value</th><th>vLLM engine</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">9,633 / 0</td><td>Running mean per replica</td><td class="num">23.3</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">835 / 1,167 ms</td><td>Load share</td><td class="num">24 / 25 / 26 / 25%</td></tr>
+        <tr><td>ITL p95 / TPOT p95</td><td class="num">30.5 / 7.5 ms</td><td>Engine TTFT / ITL (mean)</td><td class="num">36 / 5.1 ms</td></tr>
+        <tr><td>Output tok/s</td><td class="num">18,533</td><td>GPU util</td><td class="num">99%</td></tr>
+        <tr><td>SLO attainment</td><td class="num">84%</td><td>Prefix-cache hits</td><td class="num">87%</td></tr>
+        <tr><td>Score</td><td class="num">51.9 M</td><td>$ per 1M tokens</td><td class="num">$0.24</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Analysis:</b> 5.5× E1's throughput on 4× the GPUs with 4× the users, so it scaled slightly better than linearly (more requests per replica: 23 vs 18). Load is even across replicas when every request costs the same. GPU utilization was 99%, and this is the cheapest configuration per token. The client still saw TTFT about 800 ms above the engine's.</p>
+  </article>
+
+  <article class="exp" id="e3">
+    <header><span class="tag">E3 · MIXED, 2 GPU</span><h3>2 replicas, mixed traffic, 100 users, eager</h3></header>
+    <p><b>Goal:</b> multimodal-track reference at 2 GPUs.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Client</th><th class="num">Value</th><th>vLLM engine</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">1,901 / 0</td><td>Running mean per replica</td><td class="num">30.0 (cap 32)</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">593 / 1,125 ms</td><td>Waiting max</td><td class="num">10</td></tr>
+        <tr><td>ITL p95 / TPOT p95</td><td class="num">91.4 / 24.3 ms</td><td>Queue / prefill / decode (mean)</td><td class="num">200 / 53 / 2,031 ms</td></tr>
+        <tr><td>Output tok/s</td><td class="num">2,713</td><td>Engine TTFT / ITL (mean)</td><td class="num">288 / 22.1 ms</td></tr>
+        <tr><td>SLO attainment</td><td class="num">90%</td><td>Load share / GPU util</td><td class="num">48 / 52% · 52%</td></tr>
+        <tr><td>Score</td><td class="num">1.31 M</td><td>$ per 1M tokens</td><td class="num">$0.81</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Analysis:</b> both replicas sat at the 32-request cap with a small queue, so the engine, not the network, set the latency here. Long logs and images had the same TTFT as text (p95 1,102–1,163 ms), so chunked prefill kept long prompts from stalling short ones. nvidia-smi reported 52% GPU utilization with a full batch. That metric only counts time a kernel is running, so it is consistent with the GPU waiting on CPU launches in eager mode, but it does not prove it.</p>
+  </article>
+
+  <article class="exp" id="e4">
+    <header><span class="tag">E4 · MIXED, 4 GPU</span><h3>4 replicas, mixed traffic, 120 users, eager</h3></header>
+    <p><b>Goal:</b> multimodal-track reference at the full 4-GPU budget. <b>Hypothesis:</b> lower latency than E3, with headroom to spare.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Client</th><th class="num">Value</th><th>vLLM engine</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">1,824 / 0</td><td>Running mean per replica</td><td class="num">17.1</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">894 / 2,655 ms</td><td>Waiting max</td><td class="num">28</td></tr>
+        <tr><td>ITL p95 / TPOT p95</td><td class="num">124.4 / 33.4 ms</td><td>Queue / prefill / decode (mean)</td><td class="num">585 / 63 / 2,374 ms</td></tr>
+        <tr><td>Output tok/s</td><td class="num">2,635</td><td>Engine TTFT / ITL (mean)</td><td class="num">676 / 25.7 ms</td></tr>
+        <tr><td>SLO attainment</td><td class="num">57%</td><td>Load share / GPU util</td><td class="num">36 / 9 / 38 / 17% · 37%</td></tr>
+        <tr><td>Score</td><td class="num">0.24 M</td><td>$ per 1M tokens</td><td class="num">$1.67</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Result: the hypothesis failed.</b> Twice the GPUs gave less throughput and 2.4× worse TTFT p95. The per-replica traces show why:</p>
+    <div class="legend"><span class="line" style="--c:var(--s1)">Running</span><span class="line" style="--c:var(--s2)">Waiting in vLLM queue</span><span class="dash">max-num-seqs = 32</span></div>
+    <h4>E4: 4 replicas</h4>
+    <div class="multiples" id="m-r4"></div>
+    <h4>E3: 2 replicas, for comparison</h4>
+    <div class="multiples" id="m-r2"></div>
+    <p><b>Analysis:</b> replica C is pinned at 32 running with 5–28 more queued for the whole window, while replica B never has more than 9. Requests that land on C wait in its queue even though B is nearly idle. Engine queue time tripled (200 → 585 ms) and drives the TTFT tail.</p>
+    <p>Output-token share alone can't tell "fewer requests" from "shorter requests", so here are vLLM's per-replica counters for the same window:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Replica</th><th class="num">Requests done</th><th class="num">Req/s</th><th class="num">Prompt tok / req</th><th class="num">Output tok / req</th><th class="num">Max running + waiting</th><th class="num">Step time</th><th class="num">Scheduled tokens / step</th><th class="num">Engine latency</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td class="num">671</td><td class="num">10.2</td><td class="num">925</td><td class="num">93.2</td><td class="num">32</td><td class="num">19.1 ms</td><td class="num">201</td><td class="num">1.84 s</td></tr>
+        <tr><td>B</td><td class="num">164</td><td class="num">3.3</td><td class="num">761</td><td class="num">92.4</td><td class="num">9</td><td class="num">18.5 ms</td><td class="num">53</td><td class="num">1.77 s</td></tr>
+        <tr><td>C</td><td class="num">693</td><td class="num">10.5</td><td class="num">894</td><td class="num">93.9</td><td class="num">59</td><td class="num">32.0 ms</td><td class="num">336</td><td class="num">4.62 s</td></tr>
+        <tr><td>D</td><td class="num">317</td><td class="num">4.9</td><td class="num">750</td><td class="num">93.0</td><td class="num">20</td><td class="num">29.8 ms</td><td class="num">129</td><td class="num">2.85 s</td></tr>
+      </tbody>
+    </table></div>
+    <p class="meta">Replica B's sampler has gaps, so its window is 49 s; req/s uses each replica's own span. Step time = window ÷ engine iterations. The replicas sum to 1,845 finished requests against the client's 1,824: the client counts requests that <i>started</i> after ramp-up, while vLLM's counter counts every request that <i>finished</i> between the samples around the window, including some ramp-up requests. A 1% gap is expected from that.</p>
+    <p>Request sizes are similar on every replica, so B was simply sent about a third as many requests as C. C never held more than 59 requests (32 running + 27 waiting), just under Modal's 64-input limit. <b>Hypothesis:</b> Modal's router treats a replica as available until it holds 64 inputs, while vLLM only runs 32, so it keeps sending work to a replica whose batch is full. This fits the data but does not prove why the router chose C over B. The test is to run E4 with <code>concurrent_inputs</code> 32 and 16 and compare requests per replica.</p>
+    <p>A second factor: E4 had only 20% more users than E3 for twice the GPUs. In a closed loop, throughput is capped at users ÷ (latency + pause) = 120 ÷ (3.3 + 0.7) s ≈ 30 req/s. Even with perfect balance, E4 could not have doubled E3's throughput at 120 users.</p>
+  </article>
+
+  <article class="exp" id="s1">
+    <header><span class="tag">STEP 1 · CPU RESERVATION</span><h3>E4 repeated: Modal's default 0.125 CPU cores vs 8 reserved cores</h3></header>
+    <p><b>Hypothesis:</b> containers had only 0.125 guaranteed cores, while vLLM needs at least 3, so CPU starvation slowed some replicas. Both runs use the E4 config, the same seed, and the new per-hop timing.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Metric</th><th class="num">E4 (original)</th><th class="num">0.125 cores</th><th class="num">8 cores</th></tr></thead>
+      <tbody>
+        <tr><td>Requests / errors</td><td class="num">1,824 / 0</td><td class="num">2,503 / 0</td><td class="num">1,839 / 0</td></tr>
+        <tr><td>Output tok/s</td><td class="num">2,635</td><td class="num">3,580</td><td class="num">2,660</td></tr>
+        <tr><td>TTFT p50 / p95</td><td class="num">894 / 2,655 ms</td><td class="num">346 / 946 ms</td><td class="num">890 / 2,948 ms</td></tr>
+        <tr><td>SLO attainment</td><td class="num">57%</td><td class="num">100%</td><td class="num">60%</td></tr>
+        <tr><td>Request share per replica</td><td class="num">36 / 9 / 38 / 17%</td><td class="num">23 / 35 / 8 / 34%</td><td class="num">37 / 49 / 9 / 6%</td></tr>
+        <tr><td>Max waiting in vLLM</td><td class="num">28</td><td class="num">3</td><td class="num">28</td></tr>
+        <tr><td>CPU cores used per container</td><td class="num">–</td><td class="num">1.5–2.4</td><td class="num">1.5–2.8</td></tr>
+        <tr><td>Engine-core process CPU</td><td class="num">–</td><td class="num">1.28–1.34 cores</td><td class="num">1.21–1.30 cores</td></tr>
+        <tr><td>Step time per replica</td><td class="num">19 / 19 / 32 / 30 ms</td><td class="num">21 / 22 / 19 / 23 ms</td><td class="num">34 / 21 / 18 / 21 ms</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Result: the CPU hypothesis is not supported.</b> Even with 0.125 reserved cores, each container could use up to 17 cores, and vLLM used only 1.5–2.8. The engine-core process took the same ≈ 1.3 cores in both runs. The 0.125-core run did best, but only because its requests happened to be spread more evenly: when one replica got 49% of requests (8-core run), TTFT p95 tripled. <b>Run-to-run variation in Modal's routing outweighs the CPU setting</b>, so load balancing (step 3) is the real problem.</p>
+    <p>One replica per run still shows ≈ 1.6× slower engine steps (34 ms vs 21 ms) at the same engine CPU. The cause is still unknown. It is not CPU starvation and not simply load: in the 8-core run the busiest replica had normal 21 ms steps.</p>
+    <h4>Where the first token's time goes (new per-hop timing)</h4>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Segment, p50 (p95)</th><th class="num">0.125 cores</th><th class="num">8 cores</th></tr></thead>
+      <tbody>
+        <tr><td>Network + Modal proxy (client wait for headers − server time)</td><td class="num">249 (665) ms</td><td class="num">313 (675) ms</td></tr>
+        <tr><td>vLLM API server, ingress → response start</td><td class="num">7 (44) ms</td><td class="num">8 (55) ms</td></tr>
+        <tr><td>Response start → first token (engine queue, prefill, stream)</td><td class="num">77 (301) ms</td><td class="num">256 (2,578) ms</td></tr>
+        <tr><td>Client TTFT</td><td class="num">346 (946) ms</td><td class="num">890 (2,948) ms</td></tr>
+      </tbody>
+    </table></div>
+    <p>On mixed traffic, the internet path and Modal's proxy cost ≈ 250–310 ms at the median and ≈ 670 ms at p95. vLLM's API server takes under 10 ms. Everything above that comes from queueing inside an overloaded replica. The large outside-engine gap on the text runs (section 7.4) still needs the same timing, on a text re-run.</p>
+  </article>
+</section>
+
+<section id="analysis">
+  <h2>7. Cross-experiment analysis</h2>
+
+  <h3>7.1 Throughput is concurrency divided by token gap</h3>
+  <p>If each running request gets one token per engine step, output tok/s ≈ (requests running across replicas) ÷ (engine ITL). This simple model, using only vLLM's own gauges, predicts every run within 2%.</p>
+  <div class="card">
+    <div class="legend"><span style="--c:var(--s1)">Predicted from vLLM metrics</span><span style="--c:var(--s2)">Measured at the client</span></div>
+    <div id="c-little"></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-little"></div></details>
+  </div>
+  <p>So there are two ways to get more throughput: keep more requests running (more users, a higher <code>--max-num-seqs</code>, better balancing) or make each step faster (compiled mode, FP8, a smaller step).</p>
+
+  <h3>7.2 Engine step time: compiled vs eager against the bandwidth floor</h3>
+  <p>Each dot is one run: mean requests running per replica against the engine's mean ITL. The dashed line is the memory-bandwidth floor from section 3.</p>
+  <div class="card">
+    <div class="legend"><span class="dot" style="--c:var(--s1)">Compiled</span><span class="dot" style="--c:var(--s2)">Eager</span><span class="dash">Bandwidth floor ≈ 2.8 ms</span></div>
+    <div id="c-itl-batch"></div>
+  </div>
+  <p>Compiled text steps sit at 5.1–5.3 ms, about 1.9× the floor. Eager steps never go below ≈18 ms: E4's replica B took 18.5 ms per step with only 53 tokens per step, and the E0 smoke test 19 ms with 6 requests running. A floor that doesn't move with load points to fixed per-step overhead such as CPU kernel launches. Above that floor, steps grow with prefill work: replica C took 32 ms at 336 tokens per step. So the 22–26 ms eager ITL on mixed traffic is roughly 18 ms of overhead plus prefill interference.</p>
+  <p><b>Caveat:</b> every compiled point here is text-only and every eager point is mixed. Section 8.2 later runs mixed traffic in both modes and confirms execution mode as the main factor.</p>
+
+  <h3>7.3 Where a request's time goes</h3>
+  <p>Median client latency split into vLLM's queue, prefill and decode means; the rest happened outside the engine. Medians and means are mixed here, so read the split as approximate.</p>
+  <div class="card">
+    <div class="legend"><span style="--c:var(--s4)">Outside engine</span><span style="--c:var(--s2)">vLLM queue</span><span style="--c:var(--s3)">Prefill</span><span style="--c:var(--s1)">Decode</span></div>
+    <div id="c-split"></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-split"></div></details>
+  </div>
+
+  <h3>7.4 Requests not yet seen by the engine</h3>
+  <p>Little's law gives requests in flight per replica = request rate × latency ÷ replicas. Subtracting what vLLM reports as running or waiting leaves the requests held before the engine.</p>
+  <div class="card">
+    <div class="legend"><span style="--c:var(--s1)">Inside vLLM engine</span><span style="--c:var(--s4)">Before the engine</span></div>
+    <div id="c-outside"></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-outside"></div></details>
+  </div>
+  <p>The count of requests not yet in the engine follows the streamed chunk rate per replica: 2 at 650 chunks/s, 6 at 1,350, 40–57 at 3,350–4,600. A fixed network delay would not grow like that, but this does not locate the delay. The gap between client and engine can include:</p>
+  <ul>
+    <li>client-side scheduling and connection setup,</li>
+    <li>the internet path and the Modal proxy, including Modal's own per-replica queue,</li>
+    <li>vLLM's API server: HTTP parsing, chat template, tokenization, image preprocessing, and the handoff to the engine,</li>
+    <li>streaming back: SSE writes, proxy and client buffering.</li>
+  </ul>
+  <p>vLLM's TTFT timer covers only part of that path, and its exact start point in 0.21 still needs to be checked in the source. The fix is to measure each hop: client send time, container ingress (a small ASGI middleware in front of vLLM), vLLM arrival, and first token written. Running the load tester in Modal's region then removes the internet leg.</p>
+
+  <h3>7.5 Client ITL measures delivery, not generation</h3>
+  <div class="card">
+    <div class="legend"><span style="--c:var(--s1)">Client ITL p95</span><span style="--c:var(--s2)">Engine ITL mean</span></div>
+    <div id="c-itl"></div>
+  </div>
+  <p>The engine spaces tokens 5 ms apart in compiled mode, yet the client's p95 gap is 30–39 ms; tokens arrive in clumps. The client ITL p50 is under 0.1 ms in every run, which confirms batching in transit. The leaderboard score divides by client ITL p95, so it rewards whatever happens to the stream after it leaves vLLM.</p>
+
+  <h3>7.6 Cost per million output tokens</h3>
+  <div class="card">
+    <div id="c-cost"></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-cost"></div></details>
+  </div>
+  <p>Cost alone is not the target: a config that is 10% cheaper per token but doubles p95 latency is a worse product, so every cost figure should be read alongside latency p95 (E2 1.7 s, E1 2.4 s, E3 3.3 s, E4 5.7 s end to end). At steady state, text on 4 compiled GPUs costs $0.24 per 1M output tokens. Mixed traffic on 4 eager, imbalanced GPUs costs 7× more. Text runs are helped by the 87% prefix-cache hit rate, so this is a best case.</p>
+
+  <h3 id="roofline">7.7 Roofline for each experiment</h3>
+  <p>A roofline plots how much math a GPU does (TFLOP/s, up) against how much math it does per byte read from memory (arithmetic intensity, right). The sloped roof is the HBM bandwidth limit (3.35 TB/s); the flat roof is the H100's dense BF16 peak (989 TFLOP/s). They meet at the ridge, ≈ 295 FLOP/byte. A point far below the roof means the GPU is waiting on something else. Each dot is one replica; other experiments are shown faintly for comparison.</p>
+  <div class="card">
+    <div class="legend"><span class="line" style="--c:var(--ink)">Roofline (H100 SXM)</span><span class="dot" style="--c:var(--s1)">This experiment, one dot per replica</span><span class="dot" style="--c:var(--line)">Other experiments</span></div>
+    <div class="roofs" id="roofs"></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-roof"></div></details>
+  </div>
+  <div class="card">
+    <h4>Measured step time vs the roofline minimum</h4>
+    <p class="meta">The roofline minimum is the time a step would take if the GPU ran at its roof: max(FLOPs ÷ peak, bytes ÷ bandwidth). The share is how close each replica got.</p>
+    <div class="legend"><span style="--c:var(--s1)">Roofline minimum</span><span style="--c:var(--s2)">Measured step time</span></div>
+    <div id="c-steps"></div>
+  </div>
+  <p><b>What the rooflines show:</b></p>
+  <ul>
+    <li><b>Text, compiled (E1, E2):</b> intensity 19–25 FLOP/byte, deep in the memory-bound region, where decode is expected to sit. Steps move ≈ 1.6 TB/s, about half the HBM peak, so each step takes about 2× the roofline minimum. The four E2 dots overlap, which is the balanced load seen in section 6. More requests per step (<code>--max-num-seqs</code>, N4) moves dots right along the slope.</li>
+    <li><b>Mixed, eager (E0, E3, E4):</b> prefill chunks from long logs and images push intensity to 50–220 FLOP/byte, near the ridge, so the GPU could do several times more work per step. On the estimated roof (analytic FLOPs and bytes, not profiler counters) these replicas reach only ≈ 10–17%; treat that as an estimate until confirmed with Nsight or DCGM DRAM/SM counters. The GPU is not the limit here; per-step overhead is. Compiled mode on mixed traffic (N3) should move these dots up.</li>
+    <li><b>E4 imbalance on the chart:</b> its four dots spread from 50 to 213 FLOP/byte because each replica got a different amount of work. Replicas C and D also took ≈ 30 ms per step against ≈ 19 ms on A and B, even though D had less work than A. Extra step time that doesn't follow the work suggests host-level differences between containers, such as a slower CPU, which matter most in eager mode. The harness should record each container's CPU model.</li>
+  </ul>
+  <div class="note">
+    <p><b>How these points are estimated (not profiler measurements).</b> Per replica, over the measured window, from vLLM counters: engine steps, generated tokens, prompt tokens actually computed (prefix-cache hits excluded), images processed, and mean prompt length.</p>
+    <p>FLOPs = 2 × 3.63 B language-model parameters × tokens computed + LM head on generated tokens + attention (4 × 36 layers × 4,096 × context per token) + vision encoder (≈ 0.42 B parameters × 1,496 patches per image). Bytes = all LM weights read once per step (8.0 GB) + KV cache read for each generated token (144 KiB × context) + KV written + vision weights on steps with images. Activations and CPU work are ignored.</p>
+    <p>vLLM 0.21 has <code>estimated_flops_per_gpu</code> and <code>estimated_read_bytes_per_gpu</code> counters, but they read zero in these runs. To validate the estimates, the next runs should enable those counters or record DRAM throughput with DCGM (<code>DRAM_ACTIVE</code>).</p>
+  </div>
+</section>
+
+<section id="optim">
+  <h2>8. Optimization experiments (steps 2–7)</h2>
+  <p>One change at a time on 1 H100 (except step 3), same seed, vLLM 0.21 unless noted. Every run had 0 errors. Most are single runs, so differences under ≈ 10% should be treated as noise.</p>
+
+  <h3>8.1 Step 3: Modal's per-replica limit (4 GPUs, mixed, 120 users)</h3>
+  <div class="card tablewrap"><table>
+    <thead><tr><th>Modal <code>concurrent_inputs</code></th><th class="num">Runs</th><th class="num">Busiest replica's share</th><th class="num">Max waiting in vLLM</th><th class="num">TTFT p95</th><th class="num">SLO met</th></tr></thead>
+    <tbody>
+      <tr><td>64 (default)</td><td class="num">5</td><td class="num">31–49%</td><td class="num">0–28</td><td class="num">517–2,948 ms</td><td class="num">57–100%</td></tr>
+      <tr><td><b>32 = vLLM's batch</b></td><td class="num">2</td><td class="num">28–30%</td><td class="num">0</td><td class="num">421–517 ms</td><td class="num">100%</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Hypothesis, not proven:</b> with the limit at 32, requests beyond vLLM's batch wait at Modal and go to whichever replica frees up first, so no replica builds its own queue. Modal does not document its routing algorithm, and the harness does not record per-container arrival times, so this explains the data without proving the mechanism. At 64, three of five runs had one swamped replica. Two runs at 32 is a small sample, but every 32 run beat the median 64 run. One run still showed 3 replicas with ≈ 31 ms steps instead of ≈ 20 ms, costing ≈ 20% throughput; that slow-host effect is separate and unexplained.</p>
+
+  <h3>8.2 Step 2: eager vs compiled, 20–150 users on 1 GPU</h3>
+  <div class="card">
+    <div class="legend"><span class="line" style="--c:var(--s1)">Text · compiled</span><span class="line" style="--c:var(--s2)">Mixed · compiled</span><span class="line" style="--c:var(--s3)">Text · eager</span><span class="line" style="--c:var(--s4)">Mixed · eager</span><span class="dash">SLO: TTFT 1,000 ms</span></div>
+    <div class="two"><div id="c-sweep-tok"></div><div id="c-sweep-ttft"></div></div>
+    <details><summary>Show as table</summary><div class="tablewrap" id="t-sweep"></div></details>
+  </div>
+  <ul>
+    <li><b>The default execution mode doubles mixed throughput and nearly triples text throughput vs <code>--enforce-eager</code>.</b> "Compiled" here means torch.compile and CUDA graphs together; their separate contributions were not measured. Engine step: text 4.9 vs 22.5 ms, mixed 7–12 vs 21–24 ms. Peak: text 4,013 vs 1,424 tok/s; mixed 2,714 vs 1,312 tok/s. GPU busy 86–100% compiled vs 27–50% eager.</li>
+    <li><b>This answers the confound from section 7.2:</b> on the same mixed traffic, eager vs compiled is a 2× difference. Text gains more because its steps carry almost no prefill.</li>
+    <li><b>Knee points:</b> eager saturates at ≈ 50 users, compiled at ≈ 80 (both traffic types). Past the knee, throughput is flat and only TTFT grows.</li>
+    <li><b>At the knee, mixed compiled is limited by <code>max-num-seqs</code></b>: 31.5 of 32 running with up to 28 waiting. <b>Text compiled is not</b>: only ≈ 25 running, nothing waiting, yet TTFT grows from 0.3 to 2.6 s, all of it before the container's HTTP server. At ≈ 42 req/s, Modal's 64-input limit per container is the likely cap; this needs a <code>concurrent_inputs</code> test on text.</li>
+    <li>Compile and CUDA-graph capture added only ≈ 2–4 s to startup with the persistent cache; cold start was 128–190 s either way.</li>
+  </ul>
+
+  <h3>8.3 Step 4: scheduler token budget (mixed, compiled, 100 users)</h3>
+  <div class="card tablewrap"><table>
+    <thead><tr><th><code>max-num-batched-tokens</code></th><th class="num">tok/s</th><th class="num">TTFT p95 all / long logs</th><th class="num">Engine ITL</th><th class="num">Running / max waiting</th></tr></thead>
+    <tbody>
+      <tr><td>4,096</td><td class="num">2,714</td><td class="num">1,987 / 2,008 ms</td><td class="num">11.5 ms</td><td class="num">31.5 / 28</td></tr>
+      <tr><td>8,192</td><td class="num">2,783</td><td class="num">1,904 / 1,913 ms</td><td class="num">11.2 ms</td><td class="num">31.1 / 29</td></tr>
+      <tr><td>16,384</td><td class="num">2,752</td><td class="num">1,985 / 2,047 ms</td><td class="num">11.4 ms</td><td class="num">31.5 / 30</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>No effect at 32 sequences.</b> The batch is full (31.5 of 32 running), so a bigger token budget has nothing extra to schedule. vLLM's advice to raise it applies once the sequence limit is raised too; that combination was not run.</p>
+
+  <h3>8.4 Step 5: max sequences (mixed, compiled, 150 users, Modal limit 160)</h3>
+  <div class="card tablewrap"><table>
+    <thead><tr><th><code>max-num-seqs</code></th><th class="num">tok/s</th><th class="num">TTFT p95</th><th class="num">Engine ITL</th><th class="num">TPOT p95</th><th class="num">Client ITL p95</th><th class="num">Running mean / max</th><th class="num">KV used</th><th class="num">SLO met</th><th class="num">$ / 1M tok</th></tr></thead>
+    <tbody>
+      <tr><td>32</td><td class="num">2,751</td><td class="num">3,715 ms</td><td class="num">11.3 ms</td><td class="num">16.0 ms</td><td class="num">58.5 ms</td><td class="num">31 / 32</td><td class="num">10%</td><td class="num">0%</td><td class="num">$0.40</td></tr>
+      <tr><td>64</td><td class="num">3,049</td><td class="num">3,072 ms</td><td class="num">14.2 ms</td><td class="num">21.5 ms</td><td class="num">88.9 ms</td><td class="num">42 / 64</td><td class="num">19%</td><td class="num">0%</td><td class="num">$0.36</td></tr>
+      <tr><td><b>128</b></td><td class="num"><b>3,709</b></td><td class="num">2,005 ms</td><td class="num">19.5 ms</td><td class="num">32.1 ms</td><td class="num">153 ms</td><td class="num">71 / 128</td><td class="num">32%</td><td class="num">47%</td><td class="num"><b>$0.30</b></td></tr>
+    </tbody>
+  </table></div>
+  <p><b>More sequences per step is the biggest throughput lever after compiled mode: +35% at 128.</b> The cost is token speed: engine ITL rises 11 → 20 ms and step time 11.5 → 14.8 ms, as more requests share each step. TPOT p95 stays under the 50 ms SLO. No preemptions; KV peaked at 32%. Even at 128, up to 30 requests waited while only 71 ran on average, which suggests the 4,096-token budget now limits admission of new prompts. Seq 128 with an 8,192 budget is the obvious next run.</p>
+
+
+  <h3>8.6 Step 6: cache, chunking and image flags (mixed, compiled, seq 32, 100 users)</h3>
+  <div class="card tablewrap"><table>
+    <thead><tr><th>Change vs reference</th><th class="num">tok/s</th><th class="num">TTFT p95</th><th class="num">Engine ITL</th><th>Reading (single runs; differences under ≈ 10% may be noise)</th></tr></thead>
+    <tbody>
+      <tr><td>Reference (compiled, defaults)</td><td class="num">2,714</td><td class="num">1,987 ms</td><td class="num">11.5 ms</td><td>–</td></tr>
+      <tr><td>Prefix cache off</td><td class="num">2,476 (−9%)</td><td class="num">2,295 ms</td><td class="num">12.6 ms</td><td>Small loss: mixed traffic only reuses the system prompt (7% hits). Text traffic (88% hits) would lose far more.</td></tr>
+      <tr><td>Chunked prefill off (budget 8,192 = max-model-len)</td><td class="num">2,902 (+7%)</td><td class="num">1,820 ms</td><td class="num">10.8 ms</td><td>Same as chunked with an 8,192 budget (2,783). Long prompts (3,565 tokens) fit in one step, so chunking rarely triggers. vLLM requires budget ≥ max-model-len with chunking off; 8,192 meets it.</td></tr>
+      <tr><td>Pixel cap 200,704</td><td class="num">2,841 (+5%)</td><td class="num">1,836 ms</td><td class="num">11.0 ms</td><td>Image tokens drop 376 → 194. Small gain because images are 26% of requests; answer quality not checked.</td></tr>
+      <tr><td>Image processor cache off</td><td class="num">2,366 (−13%)</td><td class="num">2,478 ms</td><td class="num">12.0 ms</td><td>Worse even though every image is unique. Unexpected; needs a repeat before acting on it.</td></tr>
+    </tbody>
+  </table></div>
+  <p>None of these flags comes close to compiled mode (2×) or 128 sequences (+35%). Large swings reported for these flags with the original harness came from flags that never reached vLLM.</p>
+
+  <h3>8.7 Follow-ups: combinations, FP8 and vLLM 0.33 (1 GPU, 150 users)</h3>
+  <div class="card tablewrap"><table>
+    <thead><tr><th>Config</th><th class="num">tok/s</th><th class="num">TTFT p95</th><th class="num">Engine ITL</th><th class="num">TPOT p95</th><th class="num">$ / 1M tok</th><th>Reading</th></tr></thead>
+    <tbody>
+      <tr><td>Mixed, seq 128 (reference)</td><td class="num">3,709</td><td class="num">2,005 ms</td><td class="num">19.5 ms</td><td class="num">32.1 ms</td><td class="num">$0.30</td><td>–</td></tr>
+      <tr><td>+ token budget 8,192</td><td class="num">3,694</td><td class="num">1,935 ms</td><td class="num">18.9 ms</td><td class="num">32.4 ms</td><td class="num">$0.30</td><td>No change; the budget was not the limit.</td></tr>
+      <tr><td>+ FP8 weights</td><td class="num">3,673</td><td class="num">2,413 ms</td><td class="num">15.3 ms</td><td class="num">29.1 ms</td><td class="num">$0.30</td><td>Weights 8.6 → 5.1 GiB and steps 22% faster, but no throughput gain at 150 users. Quality not checked.</td></tr>
+      <tr><td>vLLM 0.33 instead of 0.21</td><td class="num">3,493</td><td class="num">2,325 ms</td><td class="num">18.7 ms</td><td class="num">34.5 ms</td><td class="num">$0.31</td><td>No gain out of the box (−6%, within noise). Network/proxy time fell 666 → 460 ms p50.</td></tr>
+      <tr><td><b>Text, Modal limit 64 → 160</b></td><td class="num"><b>5,667</b></td><td class="num">1,546 ms</td><td class="num">5.2 ms</td><td class="num">7.0 ms</td><td class="num"><b>$0.19</b></td><td><b>+42% vs 4,004 tok/s.</b> Confirms Modal's 64-input cap, not vLLM, was limiting text. The engine is now full (29 of 32 running, 26 waiting).</td></tr>
+    </tbody>
+  </table></div>
+  <p>At 150 closed-loop users, the mixed configs with seq 128 all deliver ≈ 3,700 tok/s whatever the step speed, which suggests the user count, not the engine, now sets throughput. Testing FP8 and vLLM 0.33 fairly needs an open-loop rate sweep that pushes past that point.</p>
+
+  <h3>8.8 What to deploy, given these results (candidates, not validated)</h3>
+  <p>Most rows rest on one run under closed-loop load. Each needs 3 repeats and an open-loop rate sweep before production use.</p>
+  <div class="card tablewrap"><table>
+    <thead><tr><th>Goal</th><th>Config</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Meet the SLO (TTFT ≤ 1 s, TPOT ≤ 50 ms)</td><td>Compiled, seq 32, ≤ 50–60 users per H100; Modal <code>concurrent_inputs</code> 32</td><td>Mixed: 2,279 tok/s at 50 users, TTFT p95 546 ms, 100% SLO, $0.48 / 1M tokens. Eager at the same SLO: 1,283 tok/s, $0.86.</td></tr>
+      <tr><td>Most tokens per dollar</td><td>Compiled, seq 128</td><td>3,709 tok/s per H100, $0.30 / 1M tokens, but TTFT p95 2 s at 150 users.</td></tr>
+      <tr><td>Text-only traffic</td><td>Compiled, Modal <code>concurrent_inputs</code> ≥ users</td><td>5,667 tok/s per H100, $0.19 / 1M tokens.</td></tr>
+      <tr><td>Multi-replica</td><td>Modal <code>concurrent_inputs</code> = vLLM <code>max-num-seqs</code></td><td>Removes the per-replica queues behind the worst runs.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="meta">$ per 1M output tokens = GPUs × $3.95/hr ÷ tok/s at steady state; excludes CPU/memory charges, cold start and idle time.</p>
+</section>
+
+<section id="limits">
+  <h2>9. Limitations</h2>
+  <ul>
+    <li><b>Closed-loop load only.</b> Users wait for a reply before sending again, so at 150 users several configs hit the same ≈ 3,700 tok/s ceiling. An open-loop rate sweep (e.g. <code>vllm bench serve --request-rate</code>) is needed to find true engine capacity.</li>
+    <li><b>One run per config.</b> Run-to-run noise on this setup has not been measured, so single runs can't detect effects below roughly 20–30%. Each config should be repeated 3 times.</li>
+    <li><b>Eager vs compiled is confounded with traffic type.</b> Text runs were compiled and mixed runs eager, so text-vs-mixed comparisons change two things at once.</li>
+    <li><b>Users were not scaled with GPUs.</b> E4 has 2× E3's GPUs but only 1.2× its users.</li>
+    <li><b>The load tester ran on a laptop over the internet.</b> Client TTFT and ITL include that path. The client was not overloaded (event-loop lag p99 ≤ 11 ms, CPU ≤ 25%).</li>
+    <li><b>Short windows.</b> 50–65 s of steady state; the histogram percentiles from vLLM are bucket bounds, not exact values.</li>
+    <li><b>Unverified timer boundaries.</b> Where vLLM 0.21 starts its TTFT timer has not been checked in the source, so "outside the engine" means "outside vLLM's timers".</li>
+    <li><b>Quality not measured.</b> The official score multiplies by a quality pass rate that only the instructor's evaluator computes.</li>
+  </ul>
+</section>
+
+<section id="review">
+  <h2>10. Peer review and corrections</h2>
+  <p>An outside review of the first draft raised the points below. Each was checked against the data already collected.</p>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Review point</th><th>Verdict</th><th>Change made</th></tr></thead>
+      <tbody>
+        <tr><td><code>max-num-batched-tokens</code> is an iteration budget across requests, not a per-request allocation</td><td>Correct</td><td>Reworded in sections 3 and 6.</td></tr>
+        <tr><td>CUDA graphs are not the same as torch.compile; don't credit the whole ITL gap to them before testing mixed in both modes</td><td>Correct</td><td>Flag described precisely. Section 7.2 now separates the ≈18 ms eager floor from prefill interference and flags the confound.</td></tr>
+        <tr><td>448 image tokens is unverified; Qwen3-VL uses 32-px tokens</td><td>Correct, and the draft was wrong</td><td>448 is the measured <i>total</i> prompt. Image tokens ≈ 374 (704×544 after resize), consistent with the measurement.</td></tr>
+        <tr><td>Replica imbalance is a hypothesis; output share can't separate fewer from shorter requests</td><td>Correct</td><td>Added per-replica requests, request sizes and step times: B got ⅓ of C's requests at the same size. Cause still stated as a hypothesis.</td></tr>
+        <tr><td>Client/server TTFT gap is not all network</td><td>Correct</td><td>Section 7.4 lists every hop and proposes per-hop timestamps.</td></tr>
+        <tr><td>Low KV-cache use ≠ low GPU use</td><td>Correct</td><td>Section 3 now says only KV capacity is ruled out.</td></tr>
+        <tr><td>Throughput, TTFT and ITL tables missing</td><td>Applied to the short first draft</td><td>This version has per-experiment tables and table views under every chart.</td></tr>
+        <tr><td colspan="3"><b>Second review (final draft)</b></td></tr>
+        <tr><td>Don't credit the whole gain to "compiled"; torch.compile and CUDA graphs are separate</td><td>Correct</td><td>Sections 8.2 and the abstract now say "default execution mode (torch.compile + CUDA graphs)". Separating them is next experiment #1.</td></tr>
+        <tr><td>Modal routing explanation is not proven</td><td>Correct</td><td>Section 8.1 labelled as a hypothesis; proof needs per-container arrival timestamps.</td></tr>
+        <tr><td>Roofline efficiency is an estimate, not a hardware measurement</td><td>Correct</td><td>Section 7.7 now says so and names the counters needed.</td></tr>
+        <tr><td>E4: replicas sum to 1,845 requests, client says 1,824</td><td>Correct; explained</td><td>Different counting windows (client: started in window; vLLM: finished between samples). Note added under the E4 table.</td></tr>
+        <tr><td>Chunked-prefill-off run needs budget &gt; max-model-len; rerun at 16,384</td><td>Partly</td><td>vLLM requires ≥, and 8,192 = 8,192 started fine. The longest prompt is 3,565 tokens, so no prompt was ever split. A 16,384 rerun is still a fair extra check.</td></tr>
+        <tr><td>Single runs; closed loop hides saturation; recommendations not validated</td><td>Correct</td><td>Section 8.8 relabelled as candidates; open-loop and repeats added to limitations and next experiments.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="next">
+  <h2>11. Next experiments</h2>
+  <p>Each config: 3 repeats, report median and spread. Change one variable at a time.</p>
+  <div class="card tablewrap"><table>
+    <thead><tr><th>#</th><th>Experiment</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Eager vs CUDA graphs only (<code>-O0</code> + graphs) vs torch.compile + graphs (default), mixed traffic</td><td>Attribute the 2× gain.</td></tr>
+      <tr><td>2</td><td>Open-loop rate sweep, 10–60 req/s, with <code>vllm bench serve</code> or the harness's open-loop mode</td><td>Find true capacity; closed loop capped at ≈ 3,700 tok/s.</td></tr>
+      <tr><td>3</td><td>Sequences 128 / 192 / 256 × token budget 8K / 16K / 32K, under open-loop load</td><td>Throughput–latency curve; vLLM recommends budgets above 8,192 on large GPUs.</td></tr>
+      <tr><td>4</td><td>Modal <code>max_inputs</code> 32 / 64 / 128 / 160 (and <code>target_inputs</code>) with per-container arrival timestamps</td><td>Prove or reject the routing hypothesis.</td></tr>
+      <tr><td>5</td><td>BF16 vs FP8 under the same open-loop load, plus an answer-quality check</td><td>FP8 steps were 22% faster but closed loop hid any gain.</td></tr>
+      <tr><td>6</td><td>Prefix cache, image cache and pixel cap on/off, repeated; vary the share of long prompts</td><td>Single-run results within noise; image-cache-off loss unexplained.</td></tr>
+      <tr><td>7</td><td>Profile one step with Nsight Systems / DCGM DRAM and SM counters</td><td>Replace the estimated roofline with measured bandwidth.</td></tr>
+      <tr><td>8</td><td>Record host and GPU IDs per container</td><td>Explain slow-step replicas (up to 20% lost).</td></tr>
+    </tbody>
+  </table></div>
+  <p class="meta">Estimated cost of 1–6 with 3 repeats: ≈ 60 single-GPU runs × $0.30 ≈ $20. Spend so far: about $30 of Modal credit (confirm on Modal's usage page), including ≈ $10 lost when a killed session left one H100 app running for 2.5 hours. The runner now starts a detached safety stop for every app.</p>
+</section>
+
+<section id="appendix">
+  <h2>12. Appendix: commands and versions</h2>
+  <div class="card">
+    <h4>vLLM server command (per replica)</h4>
+<pre>vllm serve Qwen/Qwen3-VL-4B-Instruct \
+  --served-model-name Qwen/Qwen3-VL-4B-Instruct --host 0.0.0.0 --port 8000 \
+  --tensor-parallel-size 1 --dtype bfloat16 --max-model-len 8192 \
+  --max-num-batched-tokens 4096 --max-num-seqs 32 --gpu-memory-utilization 0.90 \
+  --limit-mm-per-prompt '{"image": 1, "video": 0}' \
+  --mm-processor-kwargs '{"min_pixels": 784, "max_pixels": 401408, "fps": 1}' \
+  --enforce-eager            # E0, E3, E4   (E1, E2: --no-enforce-eager)
+  --enable-prefix-caching --enable-chunked-prefill</pre>
+    <h4>Runner commands</h4>
+<pre>R="python run_infertutor_experiment.py --gpu-type H100 --max-seqs 32 \
+   --max-batch-tokens 4096 --duration 90 --max-tokens 96"
+$R --label base-mixed-r4 --replicas 4 --mode mixed --users 120 --ramp-up 25 --processes 2
+$R --label base-mixed-r2 --replicas 2 --mode mixed --users 100 --ramp-up 25 --processes 2
+$R --label base-text-r4c --replicas 4 --no-fast-boot --mode text --users 400 --ramp-up 40 --processes 4
+$R --label base-text-r1c --replicas 1 --no-fast-boot --mode text --users 100 --ramp-up 25 --processes 2</pre>
+    <div class="tablewrap"><table>
+      <tbody>
+        <tr><td>vLLM</td><td>0.21.0</td><td>CUDA (torch)</td><td>13.0</td></tr>
+        <tr><td>GPU</td><td>H100 80GB HBM3</td><td>Driver</td><td>610.57.04</td></tr>
+        <tr><td>Cold start (deploy → healthy)</td><td>137–178 s</td><td>Region</td><td>us-east</td></tr>
+        <tr><td>Results</td><td colspan="3"><code>starter_code/results_infertutor/</code> (JSON per run + per-replica metrics JSONL)</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  </section>
+
+</main>
+<div class="tip" id="tip" role="status"></div>
+
+<script>
+const RUNS = [
+  { label: "E2 Text · 4 GPU · compiled", gpus: 4, users: 400, tok: 18533, rps: 192.66, lat: 1322, run: 23.35, wait: 0.69, itlS: 5.13, itlC: 30.5, q: 17, pf: 11, dec: 488, chunks: 18476, compiled: true },
+  { label: "E1 Text · 1 GPU · compiled", gpus: 1, users: 100, tok: 3359, rps: 34.95, lat: 2155, run: 18.22, wait: 0, itlS: 5.32, itlC: 38.5, q: 0, pf: 13, dec: 505, chunks: 3349, compiled: true },
+  { label: "E3 Mixed · 2 GPU · eager", gpus: 2, users: 100, tok: 2713, rps: 29.25, lat: 2693, run: 30.05, wait: 3.17, itlS: 22.1, itlC: 91.4, q: 200, pf: 53, dec: 2031, chunks: 2695, compiled: false },
+  { label: "E4 Mixed · 4 GPU · eager", gpus: 4, users: 120, tok: 2635, rps: 28.06, lat: 3323, run: 17.15, wait: 4.05, itlS: 25.7, itlC: 124.4, q: 585, pf: 63, dec: 2374, chunks: 2618, compiled: false },
+];
+const SMOKE = { label: "E0 Smoke · 1 GPU · eager", run: 6.04, itlS: 19.0, compiled: false };
+const TS = {"mixed-r4":[[[0.9,15,0],[2.9,32,0],[4.9,11,0],[6.9,31,0],[8.9,27,0],[10.9,10,0],[12.9,18,0],[14.9,11,0],[16.9,12,0],[18.9,17,0],[20.9,13,0],[22.9,19,0],[24.9,23,0],[26.9,12,0],[28.9,16,0],[30.9,18,0],[32.9,20,0],[34.9,20,0],[36.9,8,0],[38.9,19,0],[40.9,17,0],[42.9,17,0],[44.9,16,0],[46.9,14,0],[48.9,22,0],[50.9,14,0],[52.9,21,0],[54.9,23,0],[56.9,13,0],[58.9,17,0],[60.9,24,0],[62.9,15,0],[64.9,20,0]],[[13.9,6,0],[15.9,6,0],[17.9,5,0],[19.9,7,0],[21.9,5,0],[24.7,5,0],[26.7,5,0],[28.7,7,0],[30.7,7,0],[32.7,5,0],[37.4,9,0],[39.4,5,0],[41.4,6,0],[43.4,5,0],[45.4,8,0],[48.8,5,0],[50.8,5,0],[52.8,5,0],[54.8,4,0],[56.8,6,0],[61.2,5,0],[63.2,6,0]],[[0.7,29,14],[2.7,32,19],[4.7,32,14],[6.7,32,25],[8.7,32,17],[10.7,31,18],[12.7,31,28],[14.7,32,21],[16.7,32,27],[18.7,31,28],[20.8,32,24],[22.8,32,19],[24.8,32,19],[26.8,32,10],[28.8,32,7],[30.8,32,16],[32.8,32,5],[34.8,31,17],[36.8,32,12],[38.8,32,8],[40.8,32,17],[42.8,32,18],[44.8,32,9],[46.8,31,16],[48.8,32,14],[50.8,32,8],[52.8,32,18],[54.8,32,22],[56.8,31,12],[58.8,32,15],[60.8,32,19],[62.8,32,8],[64.8,32,10]],[[1.1,15,0],[3.1,13,0],[5.1,14,0],[7.1,11,0],[9.7,13,0],[11.7,11,0],[13.7,15,0],[15.7,11,0],[17.7,11,0],[21.0,12,0],[23.0,13,0],[25.0,14,0],[27.0,12,0],[29.0,14,0],[31.8,17,0],[33.8,15,0],[35.8,15,0],[37.8,17,0],[39.8,12,0],[42.5,13,0],[44.5,14,0],[46.5,11,0],[48.5,15,0],[50.5,14,0],[52.9,10,0],[54.9,12,0],[56.9,12,0],[58.9,14,0],[60.9,11,0],[64.2,20,0]]],"mixed-r2":[[[1.3,24,0],[3.3,32,0],[5.3,32,5],[7.3,32,5],[9.3,30,1],[11.3,32,7],[13.3,31,7],[15.3,32,6],[17.3,32,1],[19.3,23,0],[21.3,31,1],[23.3,29,0],[25.3,31,0],[27.3,32,2],[29.3,26,0],[31.3,26,0],[33.3,28,0],[35.3,30,1],[37.3,30,0],[39.3,28,0],[41.3,31,2],[43.3,24,0],[45.3,27,0],[47.3,28,0],[49.3,27,0],[51.3,32,0],[53.3,29,0],[55.3,30,0],[57.3,31,2],[59.3,31,1],[61.3,20,0],[63.3,31,0]],[[1.9,31,6],[3.9,31,7],[5.9,28,0],[7.9,32,1],[9.9,31,4],[11.9,29,2],[13.9,27,0],[15.9,31,5],[17.9,32,8],[19.9,31,4],[21.9,32,8],[23.9,31,8],[25.9,31,3],[27.9,32,3],[29.9,32,8],[31.9,31,10],[33.9,31,7],[35.9,31,5],[37.9,31,3],[39.9,31,10],[41.9,31,3],[43.9,31,10],[45.9,31,6],[47.9,31,6],[49.9,31,6],[51.9,31,6],[53.9,32,6],[55.9,32,4],[57.9,31,1],[59.9,32,0],[61.9,31,4],[63.9,31,8]]]};
+const SHARE = { "mixed-r4": [36, 9, 38, 17], "mixed-r2": [48, 52] };
+const PRICE = 3.95;
+
+const NS = "http://www.w3.org/2000/svg";
+const tip = document.getElementById("tip");
+const fmt = (n, d) => n.toLocaleString("en-US", { maximumFractionDigits: d ?? (Math.abs(n) < 10 ? 1 : 0) });
+function el(name, attrs = {}, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs = {}) { const t = el("text", { x, y, ...attrs }, parent); t.textContent = s; return t; }
+function showTip(ev, html) { tip.innerHTML = html; tip.style.opacity = 1; const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8); tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px"; }
+function hideTip() { tip.style.opacity = 0; }
+function hover(node, fn) { node.addEventListener("mousemove", ev => showTip(ev, fn())); node.addEventListener("mouseleave", hideTip); }
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p; }
+function table(id, head, rows) {
+  document.getElementById(id).innerHTML = "<table><thead><tr>" + head.map((h, i) => `<th class="${i ? "num" : ""}">${h}</th>`).join("") +
+    "</tr></thead><tbody>" + rows.map(r => "<tr>" + r.map((c, i) => `<td class="${i ? "num" : ""}">${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+}
+function bar(svg, x, y, w, h, fill, roundEnd) {
+  w = Math.max(w, 1);
+  if (!roundEnd || w < 6) return el("rect", { x, y, width: w, height: h, fill }, svg);
+  return el("path", { d: `M${x},${y} h${w - 4} a4,4 0 0 1 4,4 v${h - 8} a4,4 0 0 1 -4,4 h${-(w - 4)} z`, fill }, svg);
+}
+
+/* Grouped or stacked horizontal bars over RUNS. */
+function hbars(id, series, opts) {
+  const W = 760, labelW = 190, top = 6, bottom = 26, stacked = !!opts.stacked;
+  const rowH = stacked || series.length === 1 ? 32 : 44;
+  const H = top + RUNS.length * rowH + bottom;
+  const totals = RUNS.map(r => stacked ? series.reduce((a, s) => a + s.val(r), 0) : Math.max(...series.map(s => s.val(r))));
+  const max = niceMax(Math.max(...totals));
+  const plotW = W - labelW - 70, x = v => labelW + v / max * plotW;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria });
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4;
+    el("line", { x1: x(v), x2: x(v), y1: top, y2: H - bottom, class: "grid" }, svg);
+    txt(svg, x(v), H - 8, opts.tick(v) + (i === 4 ? " " + opts.unit : ""), { "text-anchor": "middle" });
+  }
+  RUNS.forEach((r, i) => {
+    const y0 = top + i * rowH;
+    txt(svg, 0, y0 + rowH / 2 + 4, r.label);
+    if (stacked) {
+      let acc = 0; const bh = 18, y = y0 + (rowH - bh) / 2;
+      series.forEach((s, j) => {
+        const v = s.val(r); if (v <= 0) return;
+        bar(svg, x(acc) + (acc ? 1 : 0), y, x(acc + v) - x(acc) - (acc ? 1 : 0), bh, s.color, j === series.length - 1);
+        acc += v;
+      });
+      txt(svg, x(acc) + 6, y + bh / 2 + 4, opts.tick(acc), { style: "fill:var(--ink)" });
+    } else {
+      const bh = series.length > 1 ? 14 : 18, gap = 2;
+      series.forEach((s, j) => {
+        const y = y0 + (rowH - series.length * bh - (series.length - 1) * gap) / 2 + j * (bh + gap), v = s.val(r);
+        bar(svg, labelW, y, x(v) - labelW, bh, s.color, true);
+        txt(svg, x(v) + 6, y + bh / 2 + 4, opts.tick(v), { style: "fill:var(--ink)" });
+      });
+    }
+    hover(el("rect", { x: 0, y: y0, width: W, height: rowH, fill: "transparent" }, svg), () => `<b>${r.label}</b><br>` + series.map(s => `${s.name}: ${opts.tick(s.val(r))} ${opts.unit}`).join("<br>"));
+  });
+  document.getElementById(id).appendChild(svg);
+}
+
+const ms = v => fmt(v, 0);
+const predicted = r => r.run * r.gpus / (r.itlS / 1000);
+hbars("c-little", [
+  { name: "Predicted", val: predicted, color: "var(--s1)" },
+  { name: "Measured", val: r => r.tok, color: "var(--s2)" }],
+  { unit: "tok/s", tick: v => fmt(v, 0), aria: "Predicted vs measured throughput per run" });
+table("t-little", ["Run", "Running (all replicas)", "Engine ITL (ms)", "Predicted tok/s", "Measured tok/s", "Error"],
+  RUNS.map(r => [r.label, fmt(r.run * r.gpus), fmt(r.itlS), fmt(predicted(r), 0), fmt(r.tok, 0), fmt(100 * (predicted(r) / r.tok - 1), 1) + "%"]));
+
+const outside = r => Math.max(r.lat - r.q - r.pf - r.dec, 0);
+hbars("c-split", [
+  { name: "Outside engine", val: outside, color: "var(--s4)" },
+  { name: "vLLM queue", val: r => r.q, color: "var(--s2)" },
+  { name: "Prefill", val: r => r.pf, color: "var(--s3)" },
+  { name: "Decode", val: r => r.dec, color: "var(--s1)" }],
+  { stacked: true, unit: "ms", tick: ms, aria: "Latency split per run" });
+table("t-split", ["Run", "Client latency p50", "Outside engine", "Queue", "Prefill", "Decode"],
+  RUNS.map(r => [r.label, ms(r.lat), ms(outside(r)), ms(r.q), ms(r.pf), ms(r.dec)]));
+
+const inflight = r => r.rps * r.lat / 1000 / r.gpus, inside = r => r.run + r.wait;
+hbars("c-outside", [
+  { name: "Inside vLLM engine", val: inside, color: "var(--s1)" },
+  { name: "Before the engine", val: r => Math.max(inflight(r) - inside(r), 0), color: "var(--s4)" }],
+  { stacked: true, unit: "requests / replica", tick: v => fmt(v, 0), aria: "Requests in flight per replica, inside vs before the engine" });
+table("t-outside", ["Run", "In flight / replica", "Inside engine", "Before engine", "Chunks/s per replica"],
+  RUNS.map(r => [r.label, fmt(inflight(r), 1), fmt(inside(r), 1), fmt(Math.max(inflight(r) - inside(r), 0), 1), fmt(r.chunks / r.gpus, 0)]));
+
+hbars("c-itl", [
+  { name: "Client ITL p95", val: r => r.itlC, color: "var(--s1)" },
+  { name: "Engine ITL mean", val: r => r.itlS, color: "var(--s2)" }],
+  { unit: "ms", tick: v => fmt(v), aria: "Client vs engine inter-token latency" });
+
+const cost = r => r.gpus * PRICE / (r.tok * 3600) * 1e6;
+hbars("c-cost", [{ name: "$ per 1M output tokens", val: cost, color: "var(--s1)" }],
+  { unit: "$ / 1M tok", tick: v => "$" + v.toFixed(2), aria: "Cost per million output tokens per run" });
+table("t-cost", ["Run", "GPUs", "Output tok/s", "$ per hour", "$ per 1M tokens"],
+  RUNS.map(r => [r.label, r.gpus, fmt(r.tok, 0), "$" + (r.gpus * PRICE).toFixed(2), "$" + cost(r).toFixed(2)]));
+
+/* Scatter: running per replica vs engine ITL */
+(function () {
+  const pts = [...RUNS.map(r => ({ label: r.label, x: r.run, y: r.itlS, c: r.compiled })), { label: SMOKE.label, x: SMOKE.run, y: SMOKE.itlS, c: false }];
+  const W = 760, H = 300, l = 46, rr = 20, t = 12, b = 36, XM = 35, YM = 30;
+  const X = v => l + v / XM * (W - l - rr), Y = v => t + (1 - v / YM) * (H - t - b);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Engine ITL against requests running per replica" });
+  for (let v = 0; v <= YM; v += 10) { el("line", { x1: l, x2: W - rr, y1: Y(v), y2: Y(v), class: "grid" }, svg); txt(svg, l - 8, Y(v) + 4, v + (v === YM ? " ms" : ""), { "text-anchor": "end" }); }
+  for (let v = 0; v <= XM; v += 5) txt(svg, X(v), H - 16, v, { "text-anchor": "middle" });
+  txt(svg, (l + W - rr) / 2, H - 1, "Requests running per replica (mean)", { "text-anchor": "middle" });
+  el("line", { x1: l, x2: W - rr, y1: Y(2.8), y2: Y(2.8), stroke: "var(--ink-3)", "stroke-dasharray": "5 4" }, svg);
+  txt(svg, W - rr, Y(2.8) - 6, "bandwidth floor ≈ 2.8 ms", { "text-anchor": "end" });
+  pts.forEach(p => {
+    const cx = X(p.x), cy = Y(p.y);
+    el("circle", { cx, cy, r: 6, fill: p.c ? "var(--s1)" : "var(--s2)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    txt(svg, cx + 10, cy + (p.c ? -8 : 4), p.label.split(" · ")[0], { style: "fill:var(--ink)" });
+    hover(el("circle", { cx, cy, r: 16, fill: "transparent" }, svg), () => `<b>${p.label}</b><br>${fmt(p.x)} running per replica<br>Engine ITL ${fmt(p.y)} ms`);
+  });
+  document.getElementById("c-itl-batch").appendChild(svg);
+})();
+
+/* Small multiples: running / waiting per replica */
+function multiples(id, run) {
+  const host = document.getElementById(id), names = "ABCD";
+  TS[run].forEach((pts, i) => {
+    const W = 220, H = 130, l = 24, r = 6, t = 8, b = 20, YM = 60, XM = 65;
+    const X = v => l + v / XM * (W - l - r), Y = v => t + (1 - v / YM) * (H - t - b);
+    const panel = document.createElement("div"); panel.className = "panel";
+    panel.innerHTML = `<h4>Replica ${names[i]} <span class="share">· ${SHARE[run][i]}% of tokens</span></h4>`;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Replica ${names[i]}: running and waiting requests over time` });
+    [0, 30, 60].forEach(v => { el("line", { x1: l, x2: W - r, y1: Y(v), y2: Y(v), class: "grid" }, svg); txt(svg, l - 4, Y(v) + 4, v, { "text-anchor": "end" }); });
+    [0, 30, 60].forEach(v => txt(svg, X(v), H - 4, v + (v === 60 ? "s" : ""), { "text-anchor": "middle" }));
+    el("line", { x1: l, x2: W - r, y1: Y(32), y2: Y(32), stroke: "var(--ink-3)", "stroke-dasharray": "4 3" }, svg);
+    const line = (k, c) => el("polyline", { points: pts.map(p => `${X(p[0])},${Y(p[k])}`).join(" "), fill: "none", stroke: c, "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    line(1, "var(--s1)"); line(2, "var(--s2)");
+    const cross = el("line", { y1: t, y2: H - b, stroke: "var(--ink-3)", opacity: 0 }, svg);
+    const hit = el("rect", { x: l, y: t, width: W - l - r, height: H - t - b, fill: "transparent" }, svg);
+    hit.addEventListener("mousemove", ev => {
+      const box = svg.getBoundingClientRect(), tv = ((ev.clientX - box.left) / box.width * W - l) / (W - l - r) * XM;
+      const p = pts.reduce((a, c) => Math.abs(c[0] - tv) < Math.abs(a[0] - tv) ? c : a);
+      cross.setAttribute("x1", X(p[0])); cross.setAttribute("x2", X(p[0])); cross.setAttribute("opacity", 1);
+      showTip(ev, `<b>Replica ${names[i]} · t = ${p[0]} s</b><br>Running: ${p[1]}<br>Waiting: ${p[2]}`);
+    });
+    hit.addEventListener("mouseleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+    panel.appendChild(svg); host.appendChild(panel);
+  });
+}
+multiples("m-r4", "mixed-r4");
+multiples("m-r2", "mixed-r2");
+
+/* Step 2 sweeps */
+(function () {
+  const U = [20, 50, 80, 100, 150];
+  const SER = [
+    { name: "Text · compiled", c: "var(--s1)", tok: [1443, 3054, 4003, 4013, 4004], t95: [260, 535, 841, 1351, 2576] },
+    { name: "Mixed · compiled", c: "var(--s2)", tok: [1159, 2279, 2693, 2714, 2631], t95: [377, 546, 1273, 1987, 3957] },
+    { name: "Text · eager", c: "var(--s3)", tok: [617, 1360, 1404, 1407, 1424], t95: [349, 832, 2912, 4262, 7551] },
+    { name: "Mixed · eager", c: "var(--s4)", tok: [591, 1283, 1309, 1310, 1312], t95: [599, 893, 3025, 4489, 8046] },
+  ];
+  function lines(id, key, title, unit, ymax, slo) {
+    const W = 380, H = 260, l = 50, r = 14, t = 26, b = 36;
+    const X = v => l + v / 160 * (W - l - r), Y = v => t + (1 - v / ymax) * (H - t - b);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title });
+    txt(svg, 0, 14, title, { style: "fill:var(--ink);font-weight:600;font-size:12px" });
+    for (let i = 0; i <= 4; i++) { const v = ymax * i / 4; el("line", { x1: l, x2: W - r, y1: Y(v), y2: Y(v), class: "grid" }, svg); txt(svg, l - 6, Y(v) + 4, fmt(v, 0), { "text-anchor": "end" }); }
+    U.forEach(u => txt(svg, X(u), H - b + 14, u, { "text-anchor": "middle" }));
+    txt(svg, (l + W - r) / 2, H - 4, "Concurrent users (1 GPU)", { "text-anchor": "middle" });
+    if (slo) { el("line", { x1: l, x2: W - r, y1: Y(slo), y2: Y(slo), stroke: "var(--ink-3)", "stroke-dasharray": "4 3" }, svg); txt(svg, W - r, Y(slo) - 5, "SLO 1,000 ms", { "text-anchor": "end" }); }
+    SER.forEach(sr => {
+      el("polyline", { points: U.map((u, i) => `${X(u)},${Y(sr[key][i])}`).join(" "), fill: "none", stroke: sr.c, "stroke-width": 2 }, svg);
+      U.forEach((u, i) => {
+        el("circle", { cx: X(u), cy: Y(sr[key][i]), r: 4, fill: sr.c, stroke: "var(--surface)", "stroke-width": 1.5 }, svg);
+        hover(el("circle", { cx: X(u), cy: Y(sr[key][i]), r: 10, fill: "transparent" }, svg), () => `<b>${sr.name} · ${u} users</b><br>${fmt(sr.tok[i], 0)} tok/s<br>TTFT p95 ${fmt(sr.t95[i], 0)} ms`);
+      });
+    });
+    document.getElementById(id).appendChild(svg);
+  }
+  lines("c-sweep-tok", "tok", "Output tokens/s", "tok/s", 4500);
+  lines("c-sweep-ttft", "t95", "Client TTFT p95 (ms)", "ms", 8500, 1000);
+  table("t-sweep", ["Config", ...U.map(u => u + " users: tok/s · TTFT p95")], SER.map(sr => [sr.name, ...U.map((u, i) => `${fmt(sr.tok[i], 0)} · ${fmt(sr.t95[i], 0)} ms`)]));
+})();
+
+/* Roofline per experiment */
+const ROOF = [{"exp": "E0", "rep": "A", "compiled": false, "mixed": true, "steps_s": 52.6, "tok_step": 66.4, "dec_step": 6.1, "pre_step": 60.3, "img_per_s": 0.8, "running": 6.0, "ai": 62.6, "tflops": 29.6, "tbps": 0.47, "step_ms": 19.02, "ideal_ms": 2.68, "eff": 14.1, "roof_tflops": 209.7}, {"exp": "E1", "rep": "A", "compiled": true, "mixed": false, "steps_s": 187.9, "tok_step": 19.6, "dec_step": 17.8, "pre_step": 1.8, "img_per_s": 0.0, "running": 18.2, "ai": 18.8, "tflops": 29.6, "tbps": 1.57, "step_ms": 5.32, "ideal_ms": 2.5, "eff": 47.0, "roof_tflops": 63.0}, {"exp": "E2", "rep": "A", "compiled": true, "mixed": false, "steps_s": 195.0, "tok_step": 25.2, "dec_step": 22.9, "pre_step": 2.3, "img_per_s": 0.0, "running": 22.5, "ai": 23.9, "tflops": 39.5, "tbps": 1.65, "step_ms": 5.13, "ideal_ms": 2.53, "eff": 49.3, "roof_tflops": 80.2}, {"exp": "E2", "rep": "B", "compiled": true, "mixed": false, "steps_s": 194.7, "tok_step": 25.7, "dec_step": 23.3, "pre_step": 2.4, "img_per_s": 0.0, "running": 22.7, "ai": 24.3, "tflops": 40.2, "tbps": 1.65, "step_ms": 5.14, "ideal_ms": 2.53, "eff": 49.3, "roof_tflops": 81.5}, {"exp": "E2", "rep": "C", "compiled": true, "mixed": false, "steps_s": 195.1, "tok_step": 26.6, "dec_step": 24.2, "pre_step": 2.4, "img_per_s": 0.0, "running": 23.8, "ai": 25.2, "tflops": 41.8, "tbps": 1.66, "step_ms": 5.12, "ideal_ms": 2.54, "eff": 49.5, "roof_tflops": 84.5}, {"exp": "E2", "rep": "D", "compiled": true, "mixed": false, "steps_s": 196.6, "tok_step": 26.3, "dec_step": 23.9, "pre_step": 2.4, "img_per_s": 0.0, "running": 24.3, "ai": 24.9, "tflops": 41.5, "tbps": 1.67, "step_ms": 5.09, "ideal_ms": 2.53, "eff": 49.8, "roof_tflops": 83.4}, {"exp": "E3", "rep": "A", "compiled": false, "mixed": true, "steps_s": 45.5, "tok_step": 291.5, "dec_step": 28.9, "pre_step": 262.6, "img_per_s": 3.47, "running": 29.1, "ai": 204.7, "tflops": 113.8, "tbps": 0.56, "step_ms": 22.0, "ideal_ms": 3.65, "eff": 16.6, "roof_tflops": 685.8}, {"exp": "E3", "rep": "B", "compiled": false, "mixed": true, "steps_s": 44.7, "tok_step": 328.3, "dec_step": 31.3, "pre_step": 297.0, "img_per_s": 4.22, "running": 31.0, "ai": 222.2, "tflops": 126.3, "tbps": 0.57, "step_ms": 22.35, "ideal_ms": 3.79, "eff": 17.0, "roof_tflops": 744.5}, {"exp": "E4", "rep": "A", "compiled": false, "mixed": true, "steps_s": 52.3, "tok_step": 186.9, "dec_step": 18.3, "pre_step": 168.6, "img_per_s": 2.68, "running": 17.7, "ai": 149.5, "tflops": 83.9, "tbps": 0.56, "step_ms": 19.13, "ideal_ms": 3.21, "eff": 16.8, "roof_tflops": 500.8}, {"exp": "E4", "rep": "B", "compiled": false, "mixed": true, "steps_s": 53.9, "tok_step": 49.3, "dec_step": 5.7, "pre_step": 43.5, "img_per_s": 0.99, "running": 5.8, "ai": 50.1, "tflops": 23.6, "tbps": 0.47, "step_ms": 18.54, "ideal_ms": 2.61, "eff": 14.1, "roof_tflops": 167.8}, {"exp": "E4", "rep": "C", "compiled": false, "mixed": true, "steps_s": 31.3, "tok_step": 311.5, "dec_step": 31.7, "pre_step": 279.9, "img_per_s": 2.45, "running": 31.7, "ai": 213.0, "tflops": 83.7, "tbps": 0.39, "step_ms": 31.96, "ideal_ms": 3.75, "eff": 11.7, "roof_tflops": 713.4}, {"exp": "E4", "rep": "D", "compiled": false, "mixed": true, "steps_s": 33.6, "tok_step": 113.8, "dec_step": 13.4, "pre_step": 100.3, "img_per_s": 1.17, "running": 13.4, "ai": 103.6, "tflops": 33.7, "tbps": 0.32, "step_ms": 29.77, "ideal_ms": 2.89, "eff": 9.7, "roof_tflops": 347.2}];
+const PEAK = 989, BW = 3.35, RIDGE = PEAK / BW;
+const EXPNAME = { E0: "E0 Smoke · 1 GPU · mixed · eager", E1: "E1 Text · 1 GPU · compiled", E2: "E2 Text · 4 GPU · compiled", E3: "E3 Mixed · 2 GPU · eager", E4: "E4 Mixed · 4 GPU · eager" };
+(function () {
+  const host = document.getElementById("roofs");
+  Object.keys(EXPNAME).forEach(exp => {
+    const W = 380, H = 270, l = 46, r = 12, t = 12, b = 40;
+    const X = v => l + (Math.log10(v) - 0) / 3 * (W - l - r), Y = v => t + (1 - (Math.log10(v) - 0) / 3) * (H - t - b);
+    const panel = document.createElement("div"); panel.className = "panel";
+    const pts = ROOF.filter(p => p.exp === exp);
+    const effs = pts.map(p => p.eff);
+    panel.innerHTML = `<h4>${EXPNAME[exp]}</h4>`;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Roofline for ${EXPNAME[exp]}` });
+    [1, 10, 100, 1000].forEach(v => {
+      el("line", { x1: X(v), x2: X(v), y1: t, y2: H - b, class: "grid" }, svg);
+      el("line", { x1: l, x2: W - r, y1: Y(v), y2: Y(v), class: "grid" }, svg);
+      txt(svg, X(v), H - b + 14, v, { "text-anchor": "middle" });
+      txt(svg, l - 6, Y(v) + 4, v, { "text-anchor": "end" });
+    });
+    txt(svg, (l + W - r) / 2, H - 6, "Arithmetic intensity (FLOP/byte, log)", { "text-anchor": "middle" });
+    const yl = txt(svg, 12, (t + H - b) / 2, "TFLOP/s (log)", { "text-anchor": "middle", transform: `rotate(-90 12 ${(t + H - b) / 2})` });
+    el("polyline", { points: `${X(1)},${Y(BW)} ${X(RIDGE)},${Y(PEAK)} ${X(1000)},${Y(PEAK)}`, fill: "none", stroke: "var(--ink)", "stroke-width": 2 }, svg);
+    el("line", { x1: X(RIDGE), x2: X(RIDGE), y1: Y(PEAK), y2: H - b, stroke: "var(--ink-3)", "stroke-dasharray": "4 3" }, svg);
+    txt(svg, X(RIDGE) - 4, Y(PEAK) + 14, "ridge 295", { "text-anchor": "end" });
+    txt(svg, X(4), Y(4 * BW) - 8, "3.35 TB/s", { transform: `rotate(-${Math.atan((Y(1) - Y(10)) / (X(10) - X(1))) * 180 / Math.PI} ${X(4)} ${Y(4 * BW) - 8})` });
+    txt(svg, W - r, Y(PEAK) - 6, "989 TFLOP/s", { "text-anchor": "end" });
+    ROOF.filter(p => p.exp !== exp).forEach(p => el("circle", { cx: X(p.ai), cy: Y(p.tflops), r: 4, fill: "var(--line)" }, svg));
+    pts.forEach(p => {
+      const cx = X(p.ai), cy = Y(p.tflops);
+      el("circle", { cx, cy, r: 6.5, fill: "var(--s1)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+      hover(el("circle", { cx, cy, r: 14, fill: "transparent" }, svg), () =>
+        `<b>${exp} · replica ${p.rep}</b><br>Intensity ${p.ai} FLOP/byte<br>${p.tflops} TFLOP/s of ${p.roof_tflops} roof (${(100 * p.tflops / p.roof_tflops).toFixed(0)}%)<br>${p.tbps} TB/s from HBM<br>${p.tok_step} tokens/step (${p.dec_step} decode, ${p.pre_step} prefill)<br>Step ${p.step_ms} ms vs ${p.ideal_ms} ms minimum`);
+    });
+    if (pts.length > 1) {
+      const groups = [];
+      pts.forEach(p => { const cx = X(p.ai), cy = Y(p.tflops); const g = groups.find(g => Math.hypot(g.x - cx, g.y - cy) < 14); if (g) g.reps.push(p.rep); else groups.push({ x: cx, y: cy, reps: [p.rep] }); });
+      groups.forEach(g => txt(svg, g.x + 10, g.y + 4, g.reps.join(", "), { style: "fill:var(--ink);font-weight:600" }));
+    }
+    panel.appendChild(svg);
+    const note = document.createElement("p");
+    const lo = Math.min(...effs), hi = Math.max(...effs);
+    note.textContent = `${lo === hi ? lo.toFixed(0) : lo.toFixed(0) + "–" + hi.toFixed(0)}% of roofline · ${Math.min(...pts.map(p => p.ai)).toFixed(0)}${pts.length > 1 ? "–" + Math.max(...pts.map(p => p.ai)).toFixed(0) : ""} FLOP/byte · ${pts[0].compiled ? "compiled" : "eager"}`;
+    panel.appendChild(note);
+    host.appendChild(panel);
+  });
+  table("t-roof", ["Exp · replica", "FLOP/byte", "TFLOP/s", "Roof TFLOP/s", "TB/s", "Tokens/step", "Step ms", "Minimum ms", "% of roof"],
+    ROOF.map(p => [`${p.exp} · ${p.rep}`, p.ai, p.tflops, p.roof_tflops, p.tbps, p.tok_step, p.step_ms, p.ideal_ms, p.eff + "%"]));
+
+  /* step time bars */
+  const W = 760, labelW = 120, rowH = 40, top = 6, bottom = 26, H = top + ROOF.length * rowH + bottom, max = 35;
+  const x = v => labelW + v / max * (W - labelW - 90);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Measured step time vs roofline minimum per replica" });
+  for (let v = 0; v <= max; v += 5) { el("line", { x1: x(v), x2: x(v), y1: top, y2: H - bottom, class: "grid" }, svg); txt(svg, x(v), H - 8, v + (v === max ? " ms" : ""), { "text-anchor": "middle" }); }
+  ROOF.forEach((p, i) => {
+    const y0 = top + i * rowH;
+    txt(svg, 0, y0 + rowH / 2 + 4, `${p.exp} · replica ${p.rep}`);
+    bar(svg, labelW, y0 + 5, x(p.ideal_ms) - labelW, 13, "var(--s1)", true);
+    bar(svg, labelW, y0 + 20, x(p.step_ms) - labelW, 13, "var(--s2)", true);
+    txt(svg, x(p.ideal_ms) + 6, y0 + 15, p.ideal_ms + " ms", { style: "fill:var(--ink)" });
+    txt(svg, x(p.step_ms) + 6, y0 + 30, `${p.step_ms} ms · ${p.eff}%`, { style: "fill:var(--ink)" });
+    hover(el("rect", { x: 0, y: y0, width: W, height: rowH, fill: "transparent" }, svg), () => `<b>${p.exp} · replica ${p.rep}</b><br>Minimum ${p.ideal_ms} ms · measured ${p.step_ms} ms<br>${p.eff}% of roofline`);
+  });
+  document.getElementById("c-steps").appendChild(svg);
+})();
+</script>
+</body>
+</html>
